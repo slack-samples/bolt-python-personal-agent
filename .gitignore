@@ -1,39 +1,18 @@
-# general things to ignore
-build/
-dist/
-docs/_sources/
-docs/.doctrees
-.eggs/
-*.egg-info/
-*.egg
-*.py[cod]
-__pycache__/
-*.so
-*~
+# Build
+.bolt-python-build/
 
-# virtualenv
-env*/
-venv/
-.venv*
-.env*
+# Claude Code
+.claude/*.local.json
 
-# codecov / coverage
-.coverage
-cov_*
-coverage.xml
+# Git
+.worktrees/
 
-# due to using tox and pytest
-.tox
-.cache
-.pytest_cache/
-.python-version
-pip
-.mypy_cache/
-
-# misc
-tmp.txt
+# macOS
 .DS_Store
-logs/
-*.db
-.pytype/
-.idea/
+
+# Slack
+*/.slack/apps.json
+*/.slack/apps.dev.json
+
+# Superpowers
+.superpowers/
