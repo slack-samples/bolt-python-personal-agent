@@ -1,12 +1,12 @@
 from logging import Logger
 
-from slack_bolt import Ack
+from slack_bolt.context.ack.async_ack import AsyncAck
 from slack_bolt.context.async_context import AsyncBoltContext
 from slack_sdk.web.async_client import AsyncWebClient
 
 
 async def handle_feedback_button(
-    ack: Ack,
+    ack: AsyncAck,
     body: dict,
     client: AsyncWebClient,
     context: AsyncBoltContext,
