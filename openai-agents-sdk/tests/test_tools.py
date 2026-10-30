@@ -218,6 +218,76 @@ class TestTools:
 
         assert "F_PRIV" not in result
 
+    def test_private_reply_falls_back_when_users_conversations_fails(self):
+        self.client.files_list.return_value = {
+            "files": [
+                {
+                    "id": "F_PUB",
+                    "title": "Runbook: Public",
+                    "permalink": "https://example.com/F_PUB",
+                    "channels": ["C_PUB"],
+                },
+                {
+                    "id": "F_PRIV",
+                    "title": "Runbook: Private",
+                    "permalink": "https://example.com/F_PRIV",
+                    "groups": ["G_PRIV"],
+                },
+                {
+                    "id": "F_HERE",
+                    "title": "Runbook: Here",
+                    "permalink": "https://example.com/F_HERE",
+                    "groups": ["C123"],
+                },
+            ]
+        }
+        self.client.users_conversations.side_effect = slack_error("missing_scope")
+        self.deps.is_private_reply = True
+
+        result = invoke(list_runbooks, self.deps)
+
+        assert "F_PUB" in result
+        assert "F_HERE" in result
+        assert "F_PRIV" not in result
+
+    def test_private_reply_falls_back_when_pagination_fails(self):
+        self.client.files_list.return_value = {
+            "files": [
+                {
+                    "id": "F_PUB",
+                    "title": "Runbook: Public",
+                    "permalink": "https://example.com/F_PUB",
+                    "channels": ["C_PUB"],
+                },
+                {
+                    "id": "F_PRIV",
+                    "title": "Runbook: Private",
+                    "permalink": "https://example.com/F_PRIV",
+                    "groups": ["G_PRIV"],
+                },
+                {
+                    "id": "F_HERE",
+                    "title": "Runbook: Here",
+                    "permalink": "https://example.com/F_HERE",
+                    "groups": ["C123"],
+                },
+            ]
+        }
+        self.client.users_conversations.side_effect = [
+            {
+                "channels": [{"id": "G_PRIV"}],
+                "response_metadata": {"next_cursor": "cursor123"},
+            },
+            slack_error("internal_error"),
+        ]
+        self.deps.is_private_reply = True
+
+        result = invoke(list_runbooks, self.deps)
+
+        assert "F_PUB" in result
+        assert "F_HERE" in result
+        assert "F_PRIV" not in result
+
     def test_read_runbook_refuses_runbook_not_visible(self):
         self.client.files_list.return_value = {
             "files": [
