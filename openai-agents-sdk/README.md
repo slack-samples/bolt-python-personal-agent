@@ -1,15 +1,17 @@
-# Team Agent for Slack (Bolt for Python and OpenAI Agents SDK)
+# Personal Agent for Slack (Bolt for Python and OpenAI Agents SDK)
 
-A team agent template built with [Bolt for Python](https://docs.slack.dev/tools/bolt-python/) and [OpenAI Agents SDK](https://openai.github.io/openai-agents-python/) using models from [OpenAI](https://openai.com). It keeps your team's runbooks current as threads wrap up and helps route the requests that come in. Runbooks are Slack canvases that the agent reads and writes through the [Slack MCP Server](https://github.com/slackapi/slack-mcp-server).
+A personal agent template built with [Bolt for Python](https://docs.slack.dev/tools/bolt-python/) and [OpenAI Agents SDK](https://openai.github.io/openai-agents-python/) using models from [OpenAI](https://openai.com). An agent that represents you in Slack. It learns who you are from a `soul.md` file, answers questions on your behalf when teammates message it, and quietly builds up runbooks from what it sees in channels. Runbooks are Slack canvases that the agent reads and writes through the [Slack MCP Server](https://github.com/slackapi/slack-mcp-server).
+
+Based on the Team Agent sample (`slack-samples/bolt-python-team-agent`).
 
 ## App Overview
 
-The team agent interacts with users through five entry points:
+The personal agent interacts with users through five entry points:
 
-* **App Home** — Displays a welcome message with instructions on how to interact.
-* **Direct Messages** — Users message the agent directly to find a runbook or triage a request. It responds in-thread, maintaining context across follow-ups.
+* **App Home** — Displays a welcome message with instructions on how to interact, plus Slack MCP connection status.
+* **Direct Messages** — Users message the agent directly to ask about your work or find a runbook. It responds in-thread, maintaining context across follow-ups. When you DM it, it can also help you set up your `soul.md` file or give you a brief of what needs your attention.
 * **Channel @mentions** — Mention the agent in a team channel with a request. It answers from a runbook when one covers it, or offers to start one.
-* **Channel messages** — The agent follows along in channels it's a member of. When a message settles something worth keeping, the agent adds it to the team's runbooks on its own.
+* **Channel messages** — The agent follows along in channels it's a member of. When a message settles something worth keeping, the agent adds it to runbooks on its own.
 * **Assistant Panel** — Users click _Add Agent_ in Slack, select the agent, and pick from suggested prompts or type a message.
 
 The agent works with runbooks through three app tools that call the Web API with the bot token: `list_runbooks`, `read_runbook`, and `create_runbook`. When a person has connected the [Slack MCP Server](https://github.com/slackapi/slack-mcp-server), the agent uses its runbook tools as that person instead, which can also edit existing runbooks section by section. One more app tool (emoji reactions) shows a request was picked up. Add your own tools to customize it for your use case.
@@ -25,6 +27,46 @@ Runbooks are Slack canvases titled `Runbook: <topic>`. Each one holds how the te
 This is the loop the template is built to show: the runbooks the agent writes from messages are the runbooks it answers from next time.
 
 When the agent changes a runbook, it tells the message's author with an ephemeral message only they can see. Nothing is posted to the channel. New runbooks are added as a tab in the channel they were learned in, so the whole team can read and edit them. The agent only gets runbook tools, so it can't send messages or read threads.
+
+### OWNER_USER_ID
+
+The agent represents one person: its owner. Set `OWNER_USER_ID` in your `.env` to your Slack user ID. To find your user ID, click your profile in Slack, then _More_ → _Copy member ID_.
+
+The owner gets access to tools that others don't: reading and updating `soul.md`, and the `/brief` command.
+
+### soul.md
+
+The `soul.md` file shapes the agent's voice and how it answers. Copy `soul.template.md` to `soul.md` (the file is gitignored) and fill in:
+
+- **Identity** — the agent's name and voice/operating style
+- **About me** — your name, role, team, timezone, what you work on
+- **Goals** — what you're working toward
+
+Or, DM the agent and it will interview you to create the file. Later, say "update my soul" or edit the file directly to change it.
+
+### Privacy
+
+The agent never responds with data that anyone who will see the reply couldn't already see. Privacy wins over helpfulness in every conflict.
+
+| Where the reply lands | Requester | Token used for Slack MCP | Tools |
+|---|---|---|---|
+| Owner's DM with the agent, or `/brief` (ephemeral) | Owner | owner's user token (if connected) | MCP runbook tools + brief tools + `read_soul`/`update_soul` + emoji; bot-token runbook tools if not connected |
+| Someone else's DM with the agent | That person, connected via `/slack/install` | **their own** user token | MCP runbook tools + emoji |
+| Someone else's DM with the agent | That person, not connected | none | bot-token runbook tools + emoji |
+| Any channel or channel thread (mention or thread reply) | Anyone, including the owner | none | bot-token runbook tools, filtered to public channels + emoji |
+| Passive learning (no requester) | n/a | none (bot token only) | bot-token runbook tools |
+
+The owner's user token is never attached to a run whose reply someone other than the owner can see. Runbooks are filtered by the requester's channel membership (public channels only in channel replies).
+
+### No Decisions on Your Behalf
+
+The agent answers with what it knows and never makes decisions or commitments for you. When asked for a decision, approval, or commitment, it says it will leave that to you and points the asker your way.
+
+### `/brief`
+
+The `/brief` slash command is owner-only. It reads your `soul.md` goals, uses Slack MCP to find recent mentions and requests, and replies ephemerally with what needs your attention, ranked, with permalinks. Requires the owner to be connected to Slack MCP; otherwise it replies with the install link.
+
+Typing "brief me" in your DM with the agent runs the same logic, replying in-thread.
 
 ### Slack MCP Server
 
@@ -96,8 +138,8 @@ slack login
 #### Initializing the project
 
 ```sh
-slack create my-team-agent --template slack-samples/bolt-python-team-agent --subdir openai-agents-sdk
-cd my-team-agent
+slack create my-personal-agent --template slack-samples/bolt-python-personal-agent --subdir openai-agents-sdk
+cd my-personal-agent
 ```
 
 </details>
@@ -132,8 +174,8 @@ SLACK_APP_TOKEN=YOUR_SLACK_APP_TOKEN
 #### Initializing the project
 
 ```sh
-git clone https://github.com/slack-samples/bolt-python-team-agent.git my-team-agent
-cd my-team-agent/openai-agents-sdk
+git clone https://github.com/slack-samples/bolt-python-personal-agent.git my-personal-agent
+cd my-personal-agent/openai-agents-sdk
 ```
 
 </details>
@@ -163,6 +205,18 @@ This app uses OpenAI's `gpt-6.1-sol` model through the OpenAI Agents SDK.
 
 ```sh
 OPENAI_API_KEY=YOUR_OPENAI_API_KEY
+```
+
+4. Set `OWNER_USER_ID` to your Slack user ID. To find it, click your profile in Slack, then _More_ → _Copy member ID_:
+
+```sh
+OWNER_USER_ID=YOUR_USER_ID
+```
+
+5. (Optional) Copy `soul.template.md` to `soul.md` and fill in your information, or let the agent interview you when you first DM it:
+
+```sh
+cp soul.template.md soul.md
 ```
 
 ## Development
@@ -324,7 +378,12 @@ Every incoming request is routed to a "listener". This directory groups each lis
 
 - `app_home_opened.py` — Publishes the App Home view with a welcome message and MCP status.
 - `app_mentioned.py` — Responds to @mentions in channels.
-- `message.py` — Responds to direct messages and learns from channel messages by connected users.
+- `message.py` — Responds to direct messages and learns from channel messages.
+- `reply_deps.py` — Builds `AgentDeps` for replies, selecting tools and tokens based on the requester and audience.
+
+**`/listeners/commands`** — Handles slash commands:
+
+- `brief.py` — Handles the `/brief` command (owner-only).
 
 **`/listeners/actions`** — Handles interactive components:
 
@@ -337,15 +396,25 @@ Every incoming request is routed to a "listener". This directory groups each lis
 
 ### `/agent`
 
-The `agent.py` file defines the team agent with a system prompt, personality, and tool configuration. `run_agent()` gives it the bot token's runbook tools, or the Slack MCP Server's runbook tools when the person has connected it.
+The `agent.py` file defines the personal agent with a system prompt shaped by `soul.md`. `run_agent()` gives it the bot token's runbook tools, or the Slack MCP Server's runbook tools when the person has connected it.
+
+The `access.py` file selects which tools and token to use based on the requester and where the reply will be seen.
+
+The `soul.py` file reads and writes `soul.md`.
+
+The `brief.py` file implements the brief logic (used by the `/brief` command and "brief me" in DM).
 
 The `deps.py` file defines the `AgentDeps` dataclass passed to the agent at runtime, providing access to the Slack client and conversation context.
 
-The `tools` directory contains the runbook tools, which call `files.list`, `canvases.getContent`, and `canvases.create` with the bot token, and one example tool (emoji reaction).
+The `tools` directory contains the runbook tools (`list_runbooks.py`, `read_runbook.py`, `create_runbook.py`), which call `files.list`, `canvases.getContent`, and `canvases.create` with the bot token; `runbook_visibility.py` filters runbooks by the requester's channel membership; `soul.py` implements `read_soul` and `update_soul` (owner-only); and `emoji_reaction.py` shows a request was picked up.
 
 ### `/thread_context`
 
-The `store.py` file implements a thread-safe in-memory conversation history store, keyed by channel and thread. This enables multi-turn conversations where the agent remembers previous context within a thread.
+The `store.py` file implements a thread-safe in-memory conversation history store, keyed by channel, thread, and requester. This enables multi-turn conversations where the agent remembers previous context within a thread, and ensures one person's tool outputs never enter another person's run in a shared thread.
+
+### `soul.template.md`
+
+The template for the owner's `soul.md` file, with placeholder sections for Identity, About me, and Goals. Copy it to `soul.md` (gitignored) and fill in, or let the agent create it through an onboarding interview.
 
 ## Troubleshooting
 
