@@ -3,19 +3,19 @@ from agents.run_context import RunContextWrapper
 from slack_sdk.errors import SlackApiError
 
 from agent.deps import AgentDeps
-from agent.tools.runbook_visibility import visible_runbooks
+from agent.tools.channel_runbooks import channel_runbooks
 
 
 @function_tool
 async def list_runbooks(wrapper: RunContextWrapper[AgentDeps]) -> str:
-    """List the team's runbooks: canvases titled `Runbook: <topic>`.
+    """List the runbooks in this channel: canvases titled `Runbook: <topic>`.
 
     Call this before answering a request or writing a runbook, then read the
     one that covers the topic with `read_runbook`.
     """
     deps = wrapper.context
     try:
-        runbooks = visible_runbooks(deps)
+        runbooks = channel_runbooks(deps)
     except SlackApiError as e:
         return f"Could not list runbooks: {e.response['error']}"
 

@@ -34,24 +34,12 @@ def tool_names(deps):
 def test_owner_private_gets_soul_tools_and_runbook_mcp_tools():
     deps = make_deps(is_owner=True, is_private_reply=True)
     names = tool_names(deps)
-    assert "read_soul" in names
     assert "update_soul" in names
+    assert "read_soul" not in names
     assert agent_module.mcp_tool_names(deps) == agent_module.RUNBOOK_TOOLS
 
 
-def test_dm_brief_gets_read_only_tools():
-    deps = make_deps(is_owner=True, is_private_reply=True, is_brief=True)
-    assert tool_names(deps) == ["add_emoji_reaction"]
-    assert agent_module.mcp_tool_names(deps) == [
-        "slack_search_public_and_private",
-        "slack_read_canvas",
-        "slack_read_thread",
-        "slack_read_channel",
-    ]
-    assert agent_module.mcp_tool_names(deps) == agent_module.BRIEF_READ_TOOLS
-
-
-def test_slash_brief_gets_no_local_tools():
+def test_slash_brief_gets_read_only_mcp_tools_and_no_local_tools():
     deps = make_deps(
         channel_id="C123",
         thread_ts="",
@@ -61,7 +49,12 @@ def test_slash_brief_gets_no_local_tools():
         is_brief=True,
     )
     assert tool_names(deps) == []
-    assert agent_module.mcp_tool_names(deps) == agent_module.BRIEF_READ_TOOLS
+    assert agent_module.mcp_tool_names(deps) == [
+        "slack_search_public_and_private",
+        "slack_read_canvas",
+        "slack_read_thread",
+        "slack_read_channel",
+    ]
 
 
 def test_brief_flag_ignored_for_guests():
@@ -78,7 +71,6 @@ def test_brief_flag_ignored_for_guests():
 def test_owner_in_channel_gets_no_soul_or_brief_tools():
     deps = make_deps(channel_id="C123", is_owner=True, is_private_reply=False)
     names = tool_names(deps)
-    assert "read_soul" not in names
     assert "update_soul" not in names
     assert agent_module.mcp_tool_names(deps) == agent_module.RUNBOOK_TOOLS
 
@@ -154,6 +146,23 @@ def test_instructions_ask_guest_to_identify(load_soul):
     assert "<@U0GUEST>" in instructions
 
 
+CONNECT_LINE = "ask them to connect the Slack MCP Server"
+
+
+@patch("agent.agent.load_soul", return_value="## Goals\nShip")
+def test_instructions_ask_unconnected_dm_to_connect(load_soul):
+    deps = make_deps(user_id="U0GUEST", is_private_reply=True)
+    assert CONNECT_LINE in agent_module.build_instructions(deps)
+
+
+@patch("agent.agent.load_soul", return_value="## Goals\nShip")
+def test_instructions_skip_connect_line_when_connected_or_in_channel(load_soul):
+    connected = make_deps(is_private_reply=True, user_token="xoxp-1")
+    channel = make_deps(channel_id="C123", is_private_reply=False)
+    assert CONNECT_LINE not in agent_module.build_instructions(connected)
+    assert CONNECT_LINE not in agent_module.build_instructions(channel)
+
+
 @patch("agent.agent.load_soul", return_value="## Goals\nShip")
 def test_instructions_without_owner(load_soul, monkeypatch):
     monkeypatch.delenv("OWNER_USER_ID")
@@ -201,7 +210,6 @@ def test_run_agent_uses_mcp_for_private_reply_with_token(run, mcp, openai):
     run_agent = run.call_args.args[0]
     assert [tool.name for tool in run_agent.tools] == [
         "add_emoji_reaction",
-        "read_soul",
         "update_soul",
     ]
 
@@ -226,21 +234,10 @@ def test_run_agent_owner_dm_allows_runbook_mcp_tools():
     deps = make_deps(user_token="xoxp-1", is_owner=True, is_private_reply=True)
     allowed, tools = run_with_mcp(deps)
     assert allowed == agent_module.RUNBOOK_TOOLS
-    assert tools == ["add_emoji_reaction", "read_soul", "update_soul"]
+    assert tools == ["add_emoji_reaction", "update_soul"]
 
 
-def test_run_agent_dm_brief_is_read_only():
-    deps = make_deps(
-        user_token="xoxp-1", is_owner=True, is_private_reply=True, is_brief=True
-    )
-    allowed, tools = run_with_mcp(deps)
-    assert allowed == agent_module.BRIEF_READ_TOOLS
-    assert "slack_create_canvas" not in allowed
-    assert "slack_update_canvas" not in allowed
-    assert tools == ["add_emoji_reaction"]
-
-
-def test_run_agent_slash_brief_has_no_local_tools():
+def test_run_agent_slash_brief_is_read_only():
     deps = make_deps(
         channel_id="C123",
         thread_ts="",
@@ -252,6 +249,8 @@ def test_run_agent_slash_brief_has_no_local_tools():
     )
     allowed, tools = run_with_mcp(deps)
     assert allowed == agent_module.BRIEF_READ_TOOLS
+    assert "slack_create_canvas" not in allowed
+    assert "slack_update_canvas" not in allowed
     assert tools == []
 
 

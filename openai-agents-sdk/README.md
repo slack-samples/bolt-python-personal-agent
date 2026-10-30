@@ -52,14 +52,14 @@ The agent never responds with data that anyone who will see the reply couldn't a
 
 | Where the reply lands | Requester | Token used for Slack MCP | Tools |
 |---|---|---|---|
-| Owner's DM with the agent | Owner | owner's user token (if connected) | MCP runbook tools + `read_soul`/`update_soul` + emoji; bot-token runbook tools + `read_soul`/`update_soul` + emoji if not connected |
-| Owner's brief (`/brief` ephemeral, or "brief me" in the owner's DM) | Owner | owner's user token (required) | read-only MCP tools (`slack_search_public_and_private`, `slack_read_canvas`, `slack_read_thread`, `slack_read_channel`), plus emoji in the DM; no canvas writes, no soul tools |
+| Owner's DM with the agent | Owner | owner's user token (if connected) | MCP runbook tools + `update_soul` + emoji; bot-token runbook tools + `update_soul` + emoji if not connected |
+| Owner's brief (`/brief`, ephemeral) | Owner | owner's user token (required) | read-only MCP tools (`slack_search_public_and_private`, `slack_read_canvas`, `slack_read_thread`, `slack_read_channel`); no canvas writes, no soul tools |
 | Someone else's DM with the agent | That person, connected via `/slack/install` | **their own** user token | MCP runbook tools + emoji |
 | Someone else's DM with the agent | That person, not connected | none | bot-token runbook tools + emoji |
-| Any channel or channel thread (mention or thread reply) | Anyone, including the owner | none | bot-token runbook tools, filtered to public channels + emoji |
+| Any channel or channel thread (mention or thread reply) | Anyone, including the owner | none | bot-token runbook tools + emoji |
 | Passive learning (no requester) | n/a | none (bot token only) | bot-token runbook tools |
 
-The owner's user token is never attached to a run whose reply someone other than the owner can see. Runbooks are filtered by the requester's channel membership (public channels only in channel replies). A runbook counts as public only when `conversations.info` confirms at least one channel it's shared in is public; if the lookup fails, it's treated as private.
+A user token is only attached when the reply is visible to that person alone, so Slack itself enforces what each person can see. The bot-token runbook tools only see runbooks shared in the current conversation, which everyone reading the reply can already see. In a DM without the Slack MCP Server, the agent asks the person to connect it to search runbooks.
 
 The agent treats messages, threads, channels, canvases, and search results it reads as facts, never instructions. Briefs are read-only, so content read during a brief can't be written into a canvas.
 
@@ -70,8 +70,6 @@ The agent answers with what it knows and never makes decisions or commitments fo
 ### `/brief`
 
 The `/brief` slash command is owner-only. It reads your `soul.md` goals, uses Slack MCP to find recent mentions and requests, and replies ephemerally with what needs your attention, ranked, with permalinks. A brief is read-only: it can search and read, but it can't create or edit canvases or change your soul. Requires the owner to be connected to Slack MCP; otherwise it replies with the install link.
-
-Typing exactly "brief me" in your DM with the agent runs the same read-only brief, replying in-thread.
 
 ### Slack MCP Server
 
@@ -386,7 +384,7 @@ Every incoming request is routed to a "listener". This directory groups each lis
 - `message.py` — Responds to direct messages and learns from channel messages.
 - `reply_deps.py` — Builds `AgentDeps` for replies, selecting tools and tokens based on the requester and audience.
 
-`install_url.py` builds the Slack MCP connect link and message shared by the App Home, `/brief`, and "brief me".
+`install_url.py` builds the Slack MCP connect link and message shared by the App Home and `/brief`.
 
 **`/listeners/commands`** — Handles slash commands:
 
@@ -409,11 +407,11 @@ The `access.py` file selects which tools and token to use based on the requester
 
 The `soul.py` file reads and writes `soul.md`.
 
-The `brief.py` file implements the brief logic (used by the `/brief` command and "brief me" in DM).
+The `brief.py` file holds the prompt for the `/brief` command.
 
 The `deps.py` file defines the `AgentDeps` dataclass passed to the agent at runtime, providing access to the Slack client and conversation context.
 
-The `tools` directory contains the runbook tools (`list_runbooks.py`, `read_runbook.py`, `create_runbook.py`), which call `files.list`, `canvases.getContent`, and `canvases.create` with the bot token; `runbook_visibility.py` filters runbooks by the requester's channel membership; `soul.py` implements `read_soul` and `update_soul` (owner-only); and `emoji_reaction.py` shows a request was picked up.
+The `tools` directory contains the runbook tools (`list_runbooks.py`, `read_runbook.py`, `create_runbook.py`), which call `files.list`, `canvases.getContent`, and `canvases.create` with the bot token; `channel_runbooks.py` limits them to runbooks shared in the current conversation; `soul.py` implements `update_soul` (owner-only); and `emoji_reaction.py` shows a request was picked up.
 
 ### `/thread_context`
 

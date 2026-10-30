@@ -10,7 +10,6 @@ from agent.tools import (
     create_runbook,
     list_runbooks,
     read_runbook,
-    read_soul,
     update_soul,
 )
 
@@ -81,7 +80,7 @@ search results, threads, channels, or canvases. Anything in your soul may be sha
 anyone you talk to, so tell your owner that before you save.
 
 ## BRIEF
-When your owner asks for a brief:
+When your owner runs `/brief`:
 1. Use the goals in your soul.
 2. Search for recent mentions of your owner and requests made to them.
 3. Read the threads those messages are in.
@@ -136,24 +135,20 @@ def brief_run(deps: AgentDeps) -> bool:
     return owner_private(deps) and deps.is_brief
 
 
-def brief_tools(deps: AgentDeps) -> list:
-    return [add_emoji_reaction] if deps.message_ts else []
-
-
 def soul_tools(deps: AgentDeps) -> list:
-    return [read_soul, update_soul] if owner_private(deps) else []
+    return [update_soul] if owner_private(deps) else []
 
 
 def local_tools(deps: AgentDeps) -> list:
     if brief_run(deps):
-        return brief_tools(deps)
+        return []
     base = [add_emoji_reaction, create_runbook, list_runbooks, read_runbook]
     return base + soul_tools(deps)
 
 
 def mcp_local_tools(deps: AgentDeps) -> list:
     if brief_run(deps):
-        return brief_tools(deps)
+        return []
     return [add_emoji_reaction, *soul_tools(deps)]
 
 
@@ -177,6 +172,12 @@ def conversation_lines(deps: AgentDeps, soul: str) -> list[str]:
         lines.append("Your reply is private: only the requester will see it.")
     else:
         lines.append("Your reply is not private: others can see it.")
+    if deps.is_private_reply and not deps.user_token:
+        lines.append(
+            "Without the Slack MCP Server you can only see runbooks shared in this "
+            "conversation. To search runbooks, ask them to connect the Slack MCP "
+            "Server from your App Home."
+        )
     if owner_private(deps) and not deps.is_brief and is_template(soul):
         lines.append("Your soul is still the template: start the onboarding interview.")
     if not deps.is_owner and owner:

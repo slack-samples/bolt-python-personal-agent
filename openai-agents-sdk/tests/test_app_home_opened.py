@@ -70,7 +70,7 @@ class TestAppHomeOpened:
         kwargs = self.fake_client.assistant_threads_setSuggestedPrompts.call_args.kwargs
         prompts = kwargs["prompts"]
         prompt_titles = [p["title"] for p in prompts]
-        assert "Brief me" in prompt_titles
+        assert "Write a Runbook" in prompt_titles
         assert "Update my soul" in prompt_titles
 
     def test_messages_tab_guest_prompts(self, monkeypatch):
@@ -88,7 +88,7 @@ class TestAppHomeOpened:
         prompts = kwargs["prompts"]
         prompt_titles = [p["title"] for p in prompts]
         assert "Ask what they're working on" in prompt_titles
-        assert "Brief me" not in prompt_titles
+        assert "Update my soul" not in prompt_titles
 
     def test_home_shows_soul_status_for_owner(self, monkeypatch):
         monkeypatch.setenv("OWNER_USER_ID", "U123")

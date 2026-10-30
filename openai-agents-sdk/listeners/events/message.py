@@ -5,17 +5,13 @@ from slack_bolt import BoltContext, Say, SayStream, SetStatus
 from slack_sdk import WebClient
 
 from agent import AgentDeps, run_agent
-from agent.access import is_owner
 from listeners.events.reply_deps import build_reply_deps
-from listeners.install_url import connect_message
 from listeners.views.feedback_builder import build_feedback_blocks
 from thread_context import conversation_store
 
 LEARNED_SUBTYPES = {None, "file_share", "thread_broadcast"}
 
 RUNBOOK_WRITES = {"slack_create_canvas", "slack_update_canvas", "create_runbook"}
-
-BRIEF_TRIGGER = "brief me"
 
 
 def handle_message(
@@ -86,11 +82,6 @@ def handle_message(
 
         user_id = context.user_id
 
-        is_brief = is_dm and is_owner(user_id) and text.strip().lower() == BRIEF_TRIGGER
-        if is_brief and not context.user_token:
-            say(text=connect_message(), thread_ts=thread_ts)
-            return
-
         history = conversation_store.get_history(channel_id, thread_ts, user_id)
 
         set_status(
@@ -109,9 +100,7 @@ def handle_message(
         else:
             input_items = text
 
-        deps = build_reply_deps(
-            client, context, event, is_private_reply=is_dm, is_brief=is_brief
-        )
+        deps = build_reply_deps(client, context, event, is_private_reply=is_dm)
         result = asyncio.run(run_agent(input_items, deps))
 
         streamer = say_stream()

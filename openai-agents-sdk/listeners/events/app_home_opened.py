@@ -10,12 +10,12 @@ from listeners.views.app_home_builder import build_app_home_view
 
 OWNER_PROMPTS = [
     {
-        "title": "Brief me",
-        "message": "Brief me",
-    },
-    {
         "title": "Find a Runbook",
         "message": "Is there a runbook for rotating our app's signing secret?",
+    },
+    {
+        "title": "Write a Runbook",
+        "message": "Help me write a runbook for onboarding a new teammate",
     },
     {
         "title": "Update my soul",

@@ -2,13 +2,7 @@ from agents import function_tool
 from agents.run_context import RunContextWrapper
 
 from agent.deps import AgentDeps
-from agent.soul import SOUL_PATH, load_soul, save_soul
-
-
-@function_tool
-async def read_soul(wrapper: RunContextWrapper[AgentDeps]) -> str:
-    """Read the owner's soul file with agent identity, context, and goals."""
-    return load_soul(SOUL_PATH)
+from agent.soul import SOUL_PATH, save_soul
 
 
 @function_tool

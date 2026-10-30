@@ -5,7 +5,7 @@ from slack_sdk import WebClient
 
 from agent.deps import AgentDeps
 from agent.soul import is_template, load_soul, save_soul
-from agent.tools.soul import read_soul, update_soul
+from agent.tools.soul import update_soul
 from tests.helpers import invoke
 
 
@@ -85,13 +85,6 @@ def test_update_soul_writes_for_owner_in_dm(soul_path, deps):
     result = invoke(update_soul, deps, markdown=content)
     assert result == "Saved your soul."
     assert soul_path.read_text() == content
-
-
-def test_read_soul_returns_content(soul_path, deps):
-    content = "# Soul\n## Goals\nShip it"
-    soul_path.write_text(content)
-    result = invoke(read_soul, deps)
-    assert result == content
 
 
 def test_load_soul_falls_back_inline_when_template_unreadable(tmp_path, monkeypatch):
