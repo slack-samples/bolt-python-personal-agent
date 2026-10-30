@@ -9,7 +9,7 @@ Based on the Team Agent sample (`slack-samples/bolt-python-team-agent`).
 The personal agent interacts with users through five entry points:
 
 * **App Home** — Displays a welcome message with instructions on how to interact, plus Slack MCP connection status.
-* **Direct Messages** — Users message the agent directly to ask about your work or find a runbook. It responds in-thread, maintaining context across follow-ups. When you DM it, it can also help you set up your `soul.md` file or give you a brief of what needs your attention.
+* **Direct Messages** — Users message the agent directly to ask about your work or find a runbook. It responds in-thread, maintaining context across follow-ups. When you DM it, it can also help you set up your `soul.md` file.
 * **Channel @mentions** — Mention the agent in a team channel with a request. It answers from a runbook when one covers it, or offers to start one.
 * **Channel messages** — The agent follows along in channels it's a member of. When a message settles something worth keeping, the agent adds it to runbooks on its own.
 * **Assistant Panel** — Users click _Add Agent_ in Slack, select the agent, and pick from suggested prompts or type a message.
@@ -32,7 +32,7 @@ When the agent changes a runbook, it tells the message's author with an ephemera
 
 The agent represents one person: its owner. Set `OWNER_USER_ID` in your `.env` to your Slack user ID. To find your user ID, click your profile in Slack, then _More_ → _Copy member ID_.
 
-The owner gets access to tools that others don't: reading and updating `soul.md`, and the `/brief` command.
+The owner gets access to tools that others don't: `update_soul` (editing `soul.md` in DM) and the `/brief` command.
 
 ### soul.md
 
@@ -203,7 +203,7 @@ pip install -e ".[dev]"
 This app uses OpenAI's `gpt-6.1-sol` model through the OpenAI Agents SDK.
 
 1. Create an API key from your [OpenAI dashboard](https://platform.openai.com/api-keys).
-1. Rename `.env.sample` to `.env`.
+2. Rename `.env.sample` to `.env`.
 3. Save the OpenAI API key to `.env`:
 
 ```sh
@@ -341,7 +341,17 @@ Once the agent is running, there are several ways to interact:
 
 **App Home** — Open the agent in Slack and click the _Home_ tab. You'll see a welcome message with instructions on how to interact.
 
-**Direct Messages** — Open a DM with the agent. You'll see suggested prompts like _Find a Runbook_, _Triage a Request_, and _Write a Runbook_ — pick one or type your own message. The agent replies in a thread. Send follow-up messages in the same thread and the agent will maintain the full conversation context.
+**Direct Messages** — Open a DM with the agent. The agent replies in a thread. Send follow-up messages in the same thread and the agent will maintain the full conversation context.
+
+If you're the **owner** (set via `OWNER_USER_ID`), you'll see suggested prompts:
+- _Find a Runbook_
+- _Write a Runbook_
+- _Update my soul_
+
+If you're a **guest** (anyone else), you'll see:
+- _Find a Runbook_
+- _Ask what they're working on_
+- _Triage a Request_
 
 **Channel @mentions** — Invite the agent to your team channel by typing `/invite @agent-name` in the message box, then @mention it followed by your request. The agent responds in a thread so the channel stays clean.
 
@@ -384,7 +394,7 @@ Every incoming request is routed to a "listener". This directory groups each lis
 - `message.py` — Responds to direct messages and learns from channel messages.
 - `reply_deps.py` — Builds `AgentDeps` for replies, selecting tools and tokens based on the requester and audience.
 
-`install_url.py` builds the Slack MCP connect link and message shared by the App Home and `/brief`.
+**`/listeners/install_url.py`** — Builds the Slack MCP connect link and message shared by the App Home and `/brief`.
 
 **`/listeners/commands`** — Handles slash commands:
 
@@ -403,11 +413,9 @@ Every incoming request is routed to a "listener". This directory groups each lis
 
 The `agent.py` file defines the personal agent with a system prompt shaped by `soul.md`. `run_agent()` gives it the bot token's runbook tools, or the Slack MCP Server's runbook tools in a DM with a person who has connected it, or read-only MCP tools for a brief.
 
-The `access.py` file selects which tools and token to use based on the requester and where the reply will be seen.
+The `access.py` file decides who the owner is and only attaches a user token to private replies. Tool selection lives in `agent/agent.py`.
 
 The `soul.py` file reads and writes `soul.md`.
-
-The `brief.py` file holds the prompt for the `/brief` command.
 
 The `deps.py` file defines the `AgentDeps` dataclass passed to the agent at runtime, providing access to the Slack client and conversation context.
 
