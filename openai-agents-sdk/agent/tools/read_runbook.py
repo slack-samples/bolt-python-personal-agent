@@ -3,6 +3,7 @@ from agents.run_context import RunContextWrapper
 from slack_sdk.errors import SlackApiError
 
 from agent.deps import AgentDeps
+from agent.tools.runbook_visibility import visible_runbooks
 
 
 @function_tool
@@ -15,6 +16,14 @@ async def read_runbook(wrapper: RunContextWrapper[AgentDeps], canvas_id: str) ->
         canvas_id: The runbook's canvas ID from `list_runbooks`, such as `F0123ABCD`.
     """
     deps = wrapper.context
+    try:
+        visible = visible_runbooks(deps)
+    except SlackApiError as e:
+        return f"Could not read the runbook: {e.response['error']}"
+
+    if canvas_id not in {f["id"] for f in visible}:
+        return "That runbook isn't available here."
+
     try:
         response = deps.client.api_call(
             "canvases.getContent", params={"canvas_id": canvas_id}

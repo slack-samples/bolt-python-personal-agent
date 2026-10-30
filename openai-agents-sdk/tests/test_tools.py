@@ -51,11 +51,13 @@ class TestTools:
                     "id": "F123",
                     "title": "Runbook: Deploys",
                     "permalink": "https://example.com/F123",
+                    "channels": ["C_PUB"],
                 },
                 {
                     "id": "F456",
                     "title": "Lunch orders",
                     "permalink": "https://example.com/F456",
+                    "channels": ["C_PUB"],
                 },
             ]
         }
@@ -72,6 +74,16 @@ class TestTools:
         assert invoke(list_runbooks, self.deps) == "No runbooks yet."
 
     def test_read_runbook_returns_its_markdown(self):
+        self.client.files_list.return_value = {
+            "files": [
+                {
+                    "id": "F123",
+                    "title": "Runbook: Test",
+                    "permalink": "https://example.com/F123",
+                    "channels": ["C_PUB"],
+                }
+            ]
+        }
         self.client.api_call.return_value = {"content": "# Steps\n1. Rotate the secret"}
 
         result = invoke(read_runbook, self.deps, canvas_id="F123")
@@ -82,6 +94,16 @@ class TestTools:
         assert result == "# Steps\n1. Rotate the secret"
 
     def test_read_runbook_reports_errors(self):
+        self.client.files_list.return_value = {
+            "files": [
+                {
+                    "id": "F404",
+                    "title": "Runbook: Test",
+                    "permalink": "https://example.com/F404",
+                    "channels": ["C_PUB"],
+                }
+            ]
+        }
         self.client.api_call.side_effect = slack_error("canvas_not_found")
 
         result = invoke(read_runbook, self.deps, canvas_id="F404")
@@ -117,3 +139,99 @@ class TestTools:
 
         assert "Unsupported nested list" in result
         assert "call create_runbook again" in result
+
+    def test_channel_reply_lists_public_and_current_channel_runbooks(self):
+        self.client.files_list.return_value = {
+            "files": [
+                {
+                    "id": "F_PUB",
+                    "title": "Runbook: Public",
+                    "permalink": "https://example.com/F_PUB",
+                    "channels": ["C_PUB"],
+                },
+                {
+                    "id": "F_PRIV",
+                    "title": "Runbook: Private",
+                    "permalink": "https://example.com/F_PRIV",
+                    "groups": ["G_PRIV"],
+                },
+                {
+                    "id": "F_HERE",
+                    "title": "Runbook: Here",
+                    "permalink": "https://example.com/F_HERE",
+                    "groups": ["C123"],
+                },
+            ]
+        }
+        self.deps.is_private_reply = False
+
+        result = invoke(list_runbooks, self.deps)
+
+        assert "F_PUB" in result
+        assert "F_HERE" in result
+        assert "F_PRIV" not in result
+        assert (
+            not hasattr(self.client, "users_conversations")
+            or not self.client.users_conversations.called
+        )
+
+    def test_private_reply_includes_requesters_private_channels(self):
+        self.client.files_list.return_value = {
+            "files": [
+                {
+                    "id": "F_PRIV",
+                    "title": "Runbook: Private",
+                    "permalink": "https://example.com/F_PRIV",
+                    "groups": ["G_PRIV"],
+                },
+            ]
+        }
+        self.client.users_conversations.return_value = {
+            "channels": [{"id": "G_PRIV"}],
+            "response_metadata": {},
+        }
+        self.deps.is_private_reply = True
+
+        result = invoke(list_runbooks, self.deps)
+
+        assert "F_PRIV" in result
+        self.client.users_conversations.assert_called_once()
+
+    def test_private_reply_excludes_private_channels_requester_is_not_in(self):
+        self.client.files_list.return_value = {
+            "files": [
+                {
+                    "id": "F_PRIV",
+                    "title": "Runbook: Private",
+                    "permalink": "https://example.com/F_PRIV",
+                    "groups": ["G_PRIV"],
+                },
+            ]
+        }
+        self.client.users_conversations.return_value = {
+            "channels": [],
+            "response_metadata": {},
+        }
+        self.deps.is_private_reply = True
+
+        result = invoke(list_runbooks, self.deps)
+
+        assert "F_PRIV" not in result
+
+    def test_read_runbook_refuses_runbook_not_visible(self):
+        self.client.files_list.return_value = {
+            "files": [
+                {
+                    "id": "F_PRIV",
+                    "title": "Runbook: Private",
+                    "permalink": "https://example.com/F_PRIV",
+                    "groups": ["G_PRIV"],
+                },
+            ]
+        }
+        self.deps.is_private_reply = False
+
+        result = invoke(read_runbook, self.deps, canvas_id="F_PRIV")
+
+        assert result == "That runbook isn't available here."
+        assert not self.client.api_call.called

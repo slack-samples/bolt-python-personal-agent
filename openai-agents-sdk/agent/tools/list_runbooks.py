@@ -3,8 +3,7 @@ from agents.run_context import RunContextWrapper
 from slack_sdk.errors import SlackApiError
 
 from agent.deps import AgentDeps
-
-RUNBOOK_PREFIX = "Runbook:"
+from agent.tools.runbook_visibility import visible_runbooks
 
 
 @function_tool
@@ -16,15 +15,14 @@ async def list_runbooks(wrapper: RunContextWrapper[AgentDeps]) -> str:
     """
     deps = wrapper.context
     try:
-        response = deps.client.files_list(types="canvas")
+        runbooks = visible_runbooks(deps)
     except SlackApiError as e:
         return f"Could not list runbooks: {e.response['error']}"
 
-    runbooks = [
+    result = [
         f"- [{file['title']}]({file['permalink']}) (`{file['id']}`)"
-        for file in response.get("files", [])
-        if file.get("title", "").startswith(RUNBOOK_PREFIX)
+        for file in runbooks
     ]
-    if not runbooks:
+    if not result:
         return "No runbooks yet."
-    return "\n".join(runbooks)
+    return "\n".join(result)
