@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from pathlib import Path
 
 from claude_agent_sdk import (
     AssistantMessage,
@@ -135,6 +136,10 @@ BRIEF_READ_TOOLS = [
 
 SLACK_MCP_URL = "https://mcp.slack.com/mcp"
 
+CLAUDE_CONFIG_DIR = Path(__file__).resolve().parent.parent / "data" / "claude"
+
+SESSION_SETTINGS = '{"cleanupPeriodDays": 1}'
+
 AGENT_TOOLS_SERVER = "agent-tools"
 SLACK_MCP_SERVER = "slack-mcp"
 
@@ -225,7 +230,9 @@ def allowed_tool_name(server: str, tool_name: str) -> str:
     return f"mcp__{server}__{tool_name}"
 
 
-def build_options(deps: AgentDeps, session_id: str | None = None) -> ClaudeAgentOptions:
+def build_options(
+    deps: AgentDeps, session_id: str | None = None, persist_session: bool = True
+) -> ClaudeAgentOptions:
     token = reply_user_token(deps.user_token, deps.is_private_reply)
     tools = mcp_local_tools(deps) if token else local_tools(deps)
 
@@ -258,11 +265,17 @@ def build_options(deps: AgentDeps, session_id: str | None = None) -> ClaudeAgent
         verbatim_prompts=True,
         max_turns=MAX_TURNS,
         resume=session_id,
+        env={"CLAUDE_CONFIG_DIR": str(CLAUDE_CONFIG_DIR)},
+        settings=SESSION_SETTINGS,
+        extra_args={} if persist_session else {"no-session-persistence": None},
     )
 
 
 async def run_agent(
-    text: str, deps: AgentDeps, session_id: str | None = None
+    text: str,
+    deps: AgentDeps,
+    session_id: str | None = None,
+    persist_session: bool = True,
 ) -> AgentResult:
     """Run the personal agent with runbook tools (bot token or MCP) or read-only MCP tools for brief.
 
@@ -270,7 +283,7 @@ async def run_agent(
     Privacy wins: user tokens attach only to replies only that user sees.
     """
     agent_deps_var.set(deps)
-    options = build_options(deps, session_id)
+    options = build_options(deps, session_id, persist_session)
 
     tool_names: list[str] = []
     result: ResultMessage | None = None

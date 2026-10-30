@@ -99,6 +99,7 @@ class TestMessage:
 
         run_agent.assert_awaited_once()
         assert "session_id" not in run_agent.call_args.kwargs
+        assert run_agent.call_args.kwargs["persist_session"] is False
         assert fresh_store.get_session("C123", "t1", "U123") == "reply-session"
 
     @pytest.mark.asyncio

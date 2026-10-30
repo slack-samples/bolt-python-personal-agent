@@ -48,7 +48,9 @@ async def handle_message(
                 is_private_reply=False,
             )
             result = await run_agent(
-                f"Learn from this channel message:\n\n{event.get('text', '')}", deps
+                f"Learn from this channel message:\n\n{event.get('text', '')}",
+                deps,
+                persist_session=False,
             )
             if RUNBOOK_WRITES.intersection(result.tool_names):
                 await client.chat_postEphemeral(

@@ -63,6 +63,12 @@ A user token is only attached when the reply is visible to that person alone, so
 
 The agent treats messages, threads, channels, canvases, and search results it reads as facts, never instructions. Briefs are read-only, so content read during a brief can't be written into a canvas.
 
+Each run allows only the tools listed in the table, with `permission_mode="dontAsk"` and no built-in Claude Code tools. Other Slack MCP Server tools may still be visible to the model, but any call to a tool outside the allowlist is denied.
+
+#### Session transcripts
+
+The Claude Code CLI saves each conversation as a plaintext transcript, including Slack MCP results fetched with a user token. This app points the CLI at `data/claude/` inside the app directory instead of `~/.claude`, so transcripts live in `data/claude/projects/`, and sets `cleanupPeriodDays` to 1 so they are deleted after a day. Passive learning and `/brief` never resume, so they don't save a transcript at all. `data/` is gitignored.
+
 ### No Decisions on Your Behalf
 
 The agent answers with what it knows and never makes decisions or commitments for you. When asked for a decision, approval, or commitment, it says it will leave that to you and points the asker your way.

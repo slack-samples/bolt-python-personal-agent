@@ -86,6 +86,7 @@ async def test_brief_runs_privately_for_connected_owner(run_agent, monkeypatch):
     assert deps.is_owner is True
     assert deps.is_brief is True
     assert deps.message_ts == ""
+    assert run_agent.call_args.kwargs["persist_session"] is False
     assert respond.await_count == 2
     respond.assert_any_await("Putting your brief together…")
     respond.assert_awaited_with(text="Here's what needs attention")

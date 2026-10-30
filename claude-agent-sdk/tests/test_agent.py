@@ -1,4 +1,6 @@
 import importlib
+import json
+from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -212,11 +214,13 @@ def fake_sdk_client(messages):
     return client
 
 
-async def run_with(deps, messages=None, session_id=None):
+async def run_with(deps, messages=None, session_id=None, **kwargs):
     messages = messages if messages is not None else [result_message()]
     with patch("agent.agent.ClaudeSDKClient") as sdk_client:
         sdk_client.return_value = fake_sdk_client(messages)
-        result = await agent_module.run_agent("hi", deps, session_id=session_id)
+        result = await agent_module.run_agent(
+            "hi", deps, session_id=session_id, **kwargs
+        )
     options = sdk_client.call_args.args[0]
     return options, result
 
@@ -312,6 +316,58 @@ async def test_run_agent_allows_only_listed_tools():
     assert options.verbatim_prompts is True
     assert set(options.mcp_servers) == {"agent-tools", "slack-mcp"}
     assert all(t.startswith("mcp__") for t in options.allowed_tools)
+
+
+OWNER_DM = {"user_token": "xoxp-1", "is_owner": True, "is_private_reply": True}
+GUEST_DM = {"user_id": "U0GUEST", "user_token": "xoxp-g", "is_private_reply": True}
+BRIEF = {**OWNER_DM, "channel_id": "C123", "is_brief": True}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("overrides", "local", "mcp"),
+    [
+        (OWNER_DM, ["add_emoji_reaction", "update_soul"], agent_module.RUNBOOK_TOOLS),
+        (GUEST_DM, ["add_emoji_reaction"], agent_module.RUNBOOK_TOOLS),
+        (BRIEF, [], agent_module.BRIEF_READ_TOOLS),
+    ],
+    ids=["owner_dm", "guest_dm", "brief"],
+)
+async def test_run_agent_denies_tools_outside_the_allowlist(overrides, local, mcp):
+    options, _ = await run_with(make_deps(**overrides))
+    assert options.permission_mode == "dontAsk"
+    assert options.tools == []
+    assert sorted(options.allowed_tools) == sorted(
+        [f"mcp__agent-tools__{name}" for name in local]
+        + [f"mcp__slack-mcp__{name}" for name in mcp]
+    )
+
+
+@pytest.mark.asyncio
+async def test_run_agent_keeps_transcripts_in_the_app_data_dir():
+    options, _ = await run_with(make_deps())
+    config_dir = Path(options.env["CLAUDE_CONFIG_DIR"])
+    app_dir = Path(agent_module.__file__).resolve().parent.parent
+    assert config_dir == app_dir / "data" / "claude"
+    assert config_dir.is_absolute()
+
+
+@pytest.mark.asyncio
+async def test_run_agent_cleans_up_transcripts_after_a_day():
+    options, _ = await run_with(make_deps())
+    assert json.loads(options.settings) == {"cleanupPeriodDays": 1}
+
+
+@pytest.mark.asyncio
+async def test_run_agent_persists_sessions_by_default():
+    options, _ = await run_with(make_deps())
+    assert "no-session-persistence" not in options.extra_args
+
+
+@pytest.mark.asyncio
+async def test_run_agent_can_skip_session_persistence():
+    options, _ = await run_with(make_deps(), persist_session=False)
+    assert options.extra_args == {"no-session-persistence": None}
 
 
 @pytest.mark.asyncio

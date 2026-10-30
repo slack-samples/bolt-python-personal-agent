@@ -51,7 +51,7 @@ async def handle_brief(
             is_brief=True,
         )
 
-        result = await run_agent(BRIEF_PROMPT, deps)
+        result = await run_agent(BRIEF_PROMPT, deps, persist_session=False)
         await respond(text=result.final_output)
 
     except Exception as e:
