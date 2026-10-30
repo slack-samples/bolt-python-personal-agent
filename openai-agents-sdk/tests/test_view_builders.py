@@ -6,7 +6,6 @@ def test_build_feedback_blocks():
     blocks = build_feedback_blocks()
 
     assert len(blocks) > 0
-    # The block should contain a feedback action
     block_dict = blocks[0].to_dict()
     action_ids = [e["action_id"] for e in block_dict["elements"]]
     assert "feedback" in action_ids

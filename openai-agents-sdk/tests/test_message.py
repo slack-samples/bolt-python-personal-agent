@@ -50,7 +50,7 @@ class TestMessage:
 
     @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
     def test_learns_with_bot_token_only(self, run_agent):
-        run_agent.return_value = run_result("slack_update_canvas")
+        run_agent.return_value = run_result("create_runbook")
 
         self.handle(
             {

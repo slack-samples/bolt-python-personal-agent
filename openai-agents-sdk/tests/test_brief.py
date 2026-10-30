@@ -80,7 +80,9 @@ def test_brief_runs_privately_for_connected_owner(run_agent, monkeypatch):
     assert deps.is_owner is True
     assert deps.is_brief is True
     assert deps.message_ts == ""
-    respond.assert_called_once_with(text="Here's what needs attention")
+    assert respond.call_count == 2
+    respond.assert_any_call("Putting your brief together…")
+    respond.assert_called_with(text="Here's what needs attention")
 
 
 @patch("listeners.commands.brief.run_agent", new_callable=AsyncMock)
@@ -102,7 +104,8 @@ def test_brief_acks_before_running(run_agent, monkeypatch):
     )
 
     ack.assert_called_once()
-    respond.assert_called_once()
+    assert respond.call_count == 2
+    respond.assert_any_call("Putting your brief together…")
     assert ":warning:" in respond.call_args.kwargs["text"]
 
 

@@ -156,11 +156,17 @@ def test_instructions_ask_unconnected_dm_to_connect(load_soul):
 
 
 @patch("agent.agent.load_soul", return_value="## Goals\nShip")
-def test_instructions_skip_connect_line_when_connected_or_in_channel(load_soul):
+def test_instructions_skip_connect_line_when_connected(load_soul):
     connected = make_deps(is_private_reply=True, user_token="xoxp-1")
-    channel = make_deps(channel_id="C123", is_private_reply=False)
     assert CONNECT_LINE not in agent_module.build_instructions(connected)
-    assert CONNECT_LINE not in agent_module.build_instructions(channel)
+
+
+@patch("agent.agent.load_soul", return_value="## Goals\nShip")
+def test_instructions_show_channel_scope_message_without_token(load_soul):
+    channel = make_deps(channel_id="C123", is_private_reply=False)
+    instructions = agent_module.build_instructions(channel)
+    assert "You can only see runbooks shared in this channel." in instructions
+    assert CONNECT_LINE not in instructions
 
 
 @patch("agent.agent.load_soul", return_value="## Goals\nShip")
