@@ -12,14 +12,14 @@ Switch from the vendored bolt-python wheel to the latest published `slack-bolt` 
    rm -rf vendor
    ```
 
-3. In `openai-agents-sdk/requirements.txt`, replace the `../vendor/slack_bolt-*.whl` line with `slack-bolt>=<version>` using the version from step 1.
+3. In all three `requirements.txt` files (`claude-agent-sdk/requirements.txt`, `openai-agents-sdk/requirements.txt`, `pydantic-ai/requirements.txt`), replace the `../vendor/slack_bolt-*.whl` line with `slack-bolt>=<version>` using the version from step 1.
 
-4. In `openai-agents-sdk/pyproject.toml`, replace the comment `# slack-bolt is installed from a vendored whl — see ../vendor/` with an actual dependency `"slack-bolt>=<version>"` using the version from step 1.
+4. In all three `pyproject.toml` files (`claude-agent-sdk/pyproject.toml`, `openai-agents-sdk/pyproject.toml`, `pydantic-ai/pyproject.toml`), replace the comment `# slack-bolt is installed from a vendored whl — see ../vendor/` with an actual dependency `"slack-bolt>=<version>"` using the version from step 1.
 
-5. If a `.venv` virtual environment exists in `openai-agents-sdk/`, activate it and install the updated requirements:
+5. For each implementation directory, if a `.venv` virtual environment exists, activate it and install the updated requirements:
    ```
-   if [ -f openai-agents-sdk/.venv/bin/activate ]; then
-     source openai-agents-sdk/.venv/bin/activate && pip install -r openai-agents-sdk/requirements.txt
+   if [ -f <dir>/.venv/bin/activate ]; then
+     source <dir>/.venv/bin/activate && pip install -r <dir>/requirements.txt
    fi
    ```
 

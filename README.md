@@ -4,11 +4,13 @@ A sample Slack agent built with [Bolt for Python](https://docs.slack.dev/tools/b
 
 ## Choose Your Framework
 
-This repo contains the app built with one AI agent framework:
+This repo contains the same app built with three different AI agent frameworks. Pick the one that fits your stack:
 
 | App | Directory | Get Started | Framework |
 |-----|-----------|-------------|-----------|
+| **Claude Agent SDK** | `claude-agent-sdk/` | [View README](./claude-agent-sdk/README.md) | [claude-agent-sdk](https://platform.claude.com/docs/en/agent-sdk/overview) |
 | **OpenAI Agents SDK** | `openai-agents-sdk/` | [View README](./openai-agents-sdk/README.md) | [openai-agents](https://openai.github.io/openai-agents-python/) |
+| **Pydantic AI** | `pydantic-ai/` | [View README](./pydantic-ai/README.md) | [pydantic-ai](https://ai.pydantic.dev/) |
 
 ## Claude Code, Codex, Cursor, and Other Coding Agents
 
@@ -64,4 +66,4 @@ The agent's voice and answers are shaped by a `soul.md` file that the owner (set
 
 With the bot token, the agent lists, reads, and creates runbooks. When you connect the [Slack MCP Server](https://github.com/slackapi/slack-mcp-server) from the Home tab, the agent works with runbooks as you instead, which can also update existing runbooks. When the agent changes a runbook, it tells you with an ephemeral message only you can see.
 
-For full setup instructions, follow the [README in openai-agents-sdk/](./openai-agents-sdk/README.md).
+For full setup instructions, pick a framework above and follow the README in that directory.

@@ -4,11 +4,13 @@ This file provides guidance to coding agents when working with code in this repo
 
 ## What This Is
 
-A Personal Agent for Slack built with Bolt for Python and the OpenAI Agents SDK. The agent answers as its owner's agent and keeps runbooks current. The implementation is in:
+A monorepo with three functionally identical implementations of the Personal Agent for Slack built with Bolt for Python, each self-contained with its own `AGENTS.md`. The agent answers as its owner's agent, shaped by `soul.md`, and keeps runbooks current:
 
+- `claude-agent-sdk/`: Claude Agent SDK
 - `openai-agents-sdk/`: OpenAI Agents SDK
+- `pydantic-ai/`: Pydantic AI
 
-Work and run commands inside it.
+Work and run commands inside one of them. Keep the three in parity: a user-facing change to one usually belongs in the others.
 
 ## Slack Plugin
 
