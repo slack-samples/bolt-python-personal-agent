@@ -92,3 +92,12 @@ def test_read_soul_returns_content(soul_path, deps):
     soul_path.write_text(content)
     result = invoke(read_soul, deps)
     assert result == content
+
+
+def test_load_soul_falls_back_inline_when_template_unreadable(tmp_path, monkeypatch):
+    import agent.soul
+
+    monkeypatch.setattr(agent.soul, "TEMPLATE_PATH", tmp_path / "missing.md")
+    result = load_soul(tmp_path / "soul.md")
+    assert is_template(result)
+    assert "## Goals" in result
