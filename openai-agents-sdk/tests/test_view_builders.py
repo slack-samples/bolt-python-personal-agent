@@ -90,3 +90,22 @@ def test_build_app_home_view_soul_status_none():
     ]
     soul_sections = [t for t in section_texts if "soul" in t.lower()]
     assert len(soul_sections) == 0
+
+
+def context_texts(view):
+    return [
+        element["text"]
+        for block in view["blocks"]
+        if block["type"] == "context"
+        for element in block["elements"]
+    ]
+
+
+def test_build_app_home_view_scopes_mcp_to_dms():
+    for view in (
+        build_app_home_view(),
+        build_app_home_view(install_url="https://example.com/slack/install"),
+        build_app_home_view(is_connected=True),
+    ):
+        mcp_context = next(t for t in context_texts(view) if "Slack MCP Server" in t)
+        assert "only in your DMs with the agent" in mcp_context

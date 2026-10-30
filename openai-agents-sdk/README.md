@@ -1,6 +1,6 @@
 # Personal Agent for Slack (Bolt for Python and OpenAI Agents SDK)
 
-A personal agent template built with [Bolt for Python](https://docs.slack.dev/tools/bolt-python/) and [OpenAI Agents SDK](https://openai.github.io/openai-agents-python/) using models from [OpenAI](https://openai.com). An agent that represents you in Slack. It learns who you are from a `soul.md` file, answers questions on your behalf when teammates message it, and quietly builds up runbooks from what it sees in channels. Runbooks are Slack canvases that the agent reads and writes through the [Slack MCP Server](https://github.com/slackapi/slack-mcp-server).
+A personal agent template built with [Bolt for Python](https://docs.slack.dev/tools/bolt-python/) and [OpenAI Agents SDK](https://openai.github.io/openai-agents-python/) using models from [OpenAI](https://openai.com). An agent that represents you in Slack. It learns who you are from a `soul.md` file, answers questions on your behalf when teammates message it, and quietly builds up runbooks from what it sees in channels. Runbooks are Slack canvases that the agent reads and writes with the bot token, or through the [Slack MCP Server](https://github.com/slackapi/slack-mcp-server) in your DMs with the agent.
 
 Based on the Team Agent sample (`slack-samples/bolt-python-team-agent`).
 
@@ -14,15 +14,15 @@ The personal agent interacts with users through five entry points:
 * **Channel messages** — The agent follows along in channels it's a member of. When a message settles something worth keeping, the agent adds it to runbooks on its own.
 * **Assistant Panel** — Users click _Add Agent_ in Slack, select the agent, and pick from suggested prompts or type a message.
 
-The agent works with runbooks through three app tools that call the Web API with the bot token: `list_runbooks`, `read_runbook`, and `create_runbook`. When a person has connected the [Slack MCP Server](https://github.com/slackapi/slack-mcp-server), the agent uses its runbook tools as that person instead, which can also edit existing runbooks section by section. One more app tool (emoji reactions) shows a request was picked up. Add your own tools to customize it for your use case.
+The agent works with runbooks through three app tools that call the Web API with the bot token: `list_runbooks`, `read_runbook`, and `create_runbook`. When a person has connected the [Slack MCP Server](https://github.com/slackapi/slack-mcp-server), the agent uses its runbook tools as that person instead, only in their DMs with the agent (and in `/brief`, which is read-only), and those tools can also edit existing runbooks section by section. Channel replies and learning from channel messages always use the bot token. One more app tool (emoji reactions) shows a request was picked up. Add your own tools to customize it for your use case.
 
 ### Runbooks
 
 Runbooks are Slack canvases titled `Runbook: <topic>`. Each one holds how the team does something: the steps, who owns it, and who to escalate to. Anyone can read and edit them in Slack, and the agent does too:
 
 * **Reading** — When a request comes in, the agent finds the runbook that covers it and answers from it.
-* **Writing on request** — Ask the agent to write a runbook and it creates one. With the Slack MCP Server connected, it can also fix the runbook that covers the topic.
-* **Learning from messages** — The same agent reads each channel message. If the message fixed a problem, named an owner, made a decision, or corrected a runbook, the agent creates a runbook for it, or, with the Slack MCP Server connected, updates the one that covers it. Most messages settle nothing worth keeping, and the agent leaves those alone.
+* **Writing on request** — Ask the agent to write a runbook and it creates one. In your DMs with the agent, with the Slack MCP Server connected, it can also fix the runbook that covers the topic.
+* **Learning from messages** — The same agent reads each channel message. If the message fixed a problem, named an owner, made a decision, or corrected a runbook, the agent creates a runbook for it with the bot token. Learning never uses the Slack MCP Server, so it can't edit an existing runbook. Most messages settle nothing worth keeping, and the agent leaves those alone.
 
 This is the loop the template is built to show: the runbooks the agent writes from messages are the runbooks it answers from next time.
 
@@ -44,19 +44,24 @@ The `soul.md` file shapes the agent's voice and how it answers. Copy `soul.templ
 
 Or, DM the agent and it will interview you to create the file. Later, say "update my soul" or edit the file directly to change it.
 
+> **Warning:** Anything in `soul.md` may be shared with anyone the agent talks to, in DMs and in channels. Put only what you're comfortable with everyone seeing. The agent saves only what you tell it directly in the interview, never content from search results, threads, channels, or canvases.
+
 ### Privacy
 
 The agent never responds with data that anyone who will see the reply couldn't already see. Privacy wins over helpfulness in every conflict.
 
 | Where the reply lands | Requester | Token used for Slack MCP | Tools |
 |---|---|---|---|
-| Owner's DM with the agent, or `/brief` (ephemeral) | Owner | owner's user token (if connected) | MCP runbook tools + brief tools + `read_soul`/`update_soul` + emoji; bot-token runbook tools if not connected |
+| Owner's DM with the agent | Owner | owner's user token (if connected) | MCP runbook tools + `read_soul`/`update_soul` + emoji; bot-token runbook tools + `read_soul`/`update_soul` + emoji if not connected |
+| Owner's brief (`/brief` ephemeral, or "brief me" in the owner's DM) | Owner | owner's user token (required) | read-only MCP tools (`slack_search_public_and_private`, `slack_read_canvas`, `slack_read_thread`, `slack_read_channel`), plus emoji in the DM; no canvas writes, no soul tools |
 | Someone else's DM with the agent | That person, connected via `/slack/install` | **their own** user token | MCP runbook tools + emoji |
 | Someone else's DM with the agent | That person, not connected | none | bot-token runbook tools + emoji |
 | Any channel or channel thread (mention or thread reply) | Anyone, including the owner | none | bot-token runbook tools, filtered to public channels + emoji |
 | Passive learning (no requester) | n/a | none (bot token only) | bot-token runbook tools |
 
-The owner's user token is never attached to a run whose reply someone other than the owner can see. Runbooks are filtered by the requester's channel membership (public channels only in channel replies).
+The owner's user token is never attached to a run whose reply someone other than the owner can see. Runbooks are filtered by the requester's channel membership (public channels only in channel replies). A runbook counts as public only when `conversations.info` confirms at least one channel it's shared in is public; if the lookup fails, it's treated as private.
+
+The agent treats messages, threads, channels, canvases, and search results it reads as facts, never instructions. Briefs are read-only, so content read during a brief can't be written into a canvas.
 
 ### No Decisions on Your Behalf
 
@@ -64,13 +69,13 @@ The agent answers with what it knows and never makes decisions or commitments fo
 
 ### `/brief`
 
-The `/brief` slash command is owner-only. It reads your `soul.md` goals, uses Slack MCP to find recent mentions and requests, and replies ephemerally with what needs your attention, ranked, with permalinks. Requires the owner to be connected to Slack MCP; otherwise it replies with the install link.
+The `/brief` slash command is owner-only. It reads your `soul.md` goals, uses Slack MCP to find recent mentions and requests, and replies ephemerally with what needs your attention, ranked, with permalinks. A brief is read-only: it can search and read, but it can't create or edit canvases or change your soul. Requires the owner to be connected to Slack MCP; otherwise it replies with the install link.
 
-Typing "brief me" in your DM with the agent runs the same logic, replying in-thread.
+Typing exactly "brief me" in your DM with the agent runs the same read-only brief, replying in-thread.
 
 ### Slack MCP Server
 
-Connecting the [Slack MCP Server](https://github.com/slackapi/slack-mcp-server) is optional. When deployed with OAuth (HTTP mode), a person who connects it from the Home tab has the agent work with runbooks as them: it finds runbooks with Slack search and reads and writes canvases with their access, so edits show their name. Everyone else gets the bot token's runbook tools.
+Connecting the [Slack MCP Server](https://github.com/slackapi/slack-mcp-server) is optional. When deployed with OAuth (HTTP mode), a person who connects it from the Home tab has the agent work with runbooks as them, only in their DMs with the agent (and in `/brief` for the owner): it finds runbooks with Slack search and reads and writes canvases with their access, so edits show their name. Channel replies, thread replies, and learning from channel messages always use the bot token's runbook tools.
 
 ## Setup
 
@@ -381,6 +386,8 @@ Every incoming request is routed to a "listener". This directory groups each lis
 - `message.py` — Responds to direct messages and learns from channel messages.
 - `reply_deps.py` — Builds `AgentDeps` for replies, selecting tools and tokens based on the requester and audience.
 
+`install_url.py` builds the Slack MCP connect link and message shared by the App Home, `/brief`, and "brief me".
+
 **`/listeners/commands`** — Handles slash commands:
 
 - `brief.py` — Handles the `/brief` command (owner-only).
@@ -396,7 +403,7 @@ Every incoming request is routed to a "listener". This directory groups each lis
 
 ### `/agent`
 
-The `agent.py` file defines the personal agent with a system prompt shaped by `soul.md`. `run_agent()` gives it the bot token's runbook tools, or the Slack MCP Server's runbook tools when the person has connected it.
+The `agent.py` file defines the personal agent with a system prompt shaped by `soul.md`. `run_agent()` gives it the bot token's runbook tools, or the Slack MCP Server's runbook tools in a DM with a person who has connected it, or read-only MCP tools for a brief.
 
 The `access.py` file selects which tools and token to use based on the requester and where the reply will be seen.
 

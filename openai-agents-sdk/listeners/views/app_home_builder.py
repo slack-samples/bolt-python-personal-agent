@@ -1,3 +1,11 @@
+from listeners.install_url import README_MCP_URL
+
+MCP_SCOPE = (
+    "The agent uses the Slack MCP Server as you only in your DMs with the agent "
+    "and in `/brief`. Channel replies use the bot token."
+)
+
+
 def build_app_home_view(
     install_url: str | None = None,
     is_connected: bool = False,
@@ -61,7 +69,7 @@ def build_app_home_view(
                 "elements": [
                     {
                         "type": "mrkdwn",
-                        "text": "The agent works with runbooks as you, through the Slack MCP Server.",
+                        "text": MCP_SCOPE,
                     }
                 ],
             }
@@ -82,7 +90,7 @@ def build_app_home_view(
                 "elements": [
                     {
                         "type": "mrkdwn",
-                        "text": "Connect the Slack MCP Server so the agent works with runbooks as you.",
+                        "text": f"Connect the Slack MCP Server. {MCP_SCOPE}",
                     }
                 ],
             }
@@ -93,7 +101,7 @@ def build_app_home_view(
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": "\U0001f534 *Slack MCP Server is disconnected.* <https://github.com/slack-samples/bolt-python-personal-agent/blob/main/openai-agents-sdk/README.md#slack-mcp-server|Learn how to enable the Slack MCP Server.>",
+                    "text": f"\U0001f534 *Slack MCP Server is disconnected.* <{README_MCP_URL}|Learn how to enable the Slack MCP Server.>",
                 },
             }
         )
@@ -103,7 +111,7 @@ def build_app_home_view(
                 "elements": [
                     {
                         "type": "mrkdwn",
-                        "text": "Connect the Slack MCP Server so the agent works with runbooks as you.",
+                        "text": f"Connect the Slack MCP Server. {MCP_SCOPE}",
                     }
                 ],
             }
