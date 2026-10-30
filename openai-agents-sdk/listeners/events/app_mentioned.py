@@ -49,7 +49,7 @@ def handle_app_mentioned(
         )
 
         # Get conversation history
-        history = conversation_store.get_history(channel_id, thread_ts)
+        history = conversation_store.get_history(channel_id, thread_ts, user_id)
 
         # Build input for the agent
         if history:
@@ -75,7 +75,9 @@ def handle_app_mentioned(
         streamer.stop(blocks=feedback_blocks)
 
         # Store conversation history
-        conversation_store.set_history(channel_id, thread_ts, result.to_input_list())
+        conversation_store.set_history(
+            channel_id, thread_ts, user_id, result.to_input_list()
+        )
 
     except Exception as e:
         logger.exception("Failed to handle app mention")

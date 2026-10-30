@@ -68,9 +68,7 @@ def handle_message(
     if is_dm:
         pass
     elif is_thread_reply:
-        # Channel thread replies are handled only if the bot is already engaged
-        history = conversation_store.get_history(context.channel_id, event["thread_ts"])
-        if history is None:
+        if not conversation_store.has_thread(context.channel_id, event["thread_ts"]):
             return
     else:
         # Top-level channel messages are handled by app_mentioned
@@ -84,7 +82,7 @@ def handle_message(
         user_id = context.user_id
 
         # Get conversation history
-        history = conversation_store.get_history(channel_id, thread_ts)
+        history = conversation_store.get_history(channel_id, thread_ts, user_id)
 
         # Set assistant thread status with loading messages
         set_status(
@@ -122,7 +120,9 @@ def handle_message(
         streamer.stop(blocks=feedback_blocks)
 
         # Store conversation history
-        conversation_store.set_history(channel_id, thread_ts, result.to_input_list())
+        conversation_store.set_history(
+            channel_id, thread_ts, user_id, result.to_input_list()
+        )
 
     except Exception as e:
         logger.exception("Failed to handle message")
