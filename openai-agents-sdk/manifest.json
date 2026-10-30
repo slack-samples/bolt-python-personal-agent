@@ -15,7 +15,14 @@
     "bot_user": {
       "display_name": "Personal Agent - OpenAI SDK (Python)",
       "always_online": true
-    }
+    },
+    "slash_commands": [
+      {
+        "command": "/brief",
+        "description": "Brief me on what needs my attention",
+        "should_escape": false
+      }
+    ]
   },
   "oauth_config": {
     "redirect_urls": [
@@ -50,6 +57,7 @@
         "channels:history",
         "channels:read",
         "chat:write",
+        "commands",
         "files:read",
         "groups:history",
         "groups:read",
