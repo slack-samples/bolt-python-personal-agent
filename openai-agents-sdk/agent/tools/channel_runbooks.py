@@ -8,7 +8,7 @@ def shared_in(runbook: dict) -> list[str]:
 
 
 def channel_runbooks(deps: AgentDeps) -> list[dict]:
-    response = deps.client.files_list(types="canvas")
+    response = deps.client.files_list(types="canvas", channel=deps.channel_id)
     return [
         file
         for file in response.get("files", [])

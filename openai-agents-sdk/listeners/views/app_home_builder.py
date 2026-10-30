@@ -11,6 +11,7 @@ def build_app_home_view(
     is_connected: bool = False,
     soul_status: str | None = None,
 ) -> dict:
+    """Build App Home Block Kit view with MCP connection status and soul status for owner."""
     blocks = [
         {
             "type": "header",

@@ -42,6 +42,7 @@ GUEST_PROMPTS = [
 def handle_app_home_opened(
     client: WebClient, event: dict, context: BoltContext, logger: Logger
 ):
+    """Publish App Home view with MCP connection status and soul status for owner, or suggested prompts for the Messages tab."""
     try:
         user_id = context.user_id
         user_is_owner = is_owner(user_id)

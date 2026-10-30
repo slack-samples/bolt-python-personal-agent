@@ -6,8 +6,9 @@ from slack_sdk import WebClient
 
 from agent import AgentDeps, run_agent
 from agent.access import is_owner, owner_user_id
-from agent.brief import BRIEF_PROMPT
 from listeners.install_url import connect_message
+
+BRIEF_PROMPT = "Brief me: what needs my attention today?"
 
 
 def handle_brief(
@@ -18,6 +19,7 @@ def handle_brief(
     respond,
     logger: Logger,
 ) -> None:
+    """Handle /brief slash command (owner-only, requires MCP connection, read-only)."""
     ack()
 
     try:
@@ -33,6 +35,8 @@ def handle_brief(
         if not context.user_token:
             respond(text=connect_message())
             return
+
+        respond("Putting your brief together…")
 
         deps = AgentDeps(
             client=client,

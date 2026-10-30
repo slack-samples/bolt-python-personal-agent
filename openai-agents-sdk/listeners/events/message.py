@@ -11,7 +11,7 @@ from thread_context import conversation_store
 
 LEARNED_SUBTYPES = {None, "file_share", "thread_broadcast"}
 
-RUNBOOK_WRITES = {"slack_create_canvas", "slack_update_canvas", "create_runbook"}
+RUNBOOK_WRITES = {"create_runbook"}
 
 
 def handle_message(
@@ -25,8 +25,7 @@ def handle_message(
 ):
     """Handle messages sent to the agent via DM or in threads the bot is part of.
 
-    The agent also learns from channel messages, adding anything they settle
-    to the team's runbooks.
+    The agent also learns from channel messages, adding anything they settle to runbooks.
     """
     if event.get("bot_id"):
         return

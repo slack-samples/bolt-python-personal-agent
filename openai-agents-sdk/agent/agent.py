@@ -109,12 +109,11 @@ RUNBOOK_TOOLS = [
     "slack_update_canvas",
 ]
 
-BRIEF_TOOLS = ["slack_read_thread", "slack_read_channel"]
-
 BRIEF_READ_TOOLS = [
     "slack_search_public_and_private",
     "slack_read_canvas",
-    *BRIEF_TOOLS,
+    "slack_read_thread",
+    "slack_read_channel",
 ]
 
 SLACK_MCP_URL = "https://mcp.slack.com/mcp"
@@ -172,12 +171,15 @@ def conversation_lines(deps: AgentDeps, soul: str) -> list[str]:
         lines.append("Your reply is private: only the requester will see it.")
     else:
         lines.append("Your reply is not private: others can see it.")
-    if deps.is_private_reply and not deps.user_token:
-        lines.append(
-            "Without the Slack MCP Server you can only see runbooks shared in this "
-            "conversation. To search runbooks, ask them to connect the Slack MCP "
-            "Server from your App Home."
-        )
+    if not deps.user_token:
+        if deps.is_private_reply:
+            lines.append(
+                "Without the Slack MCP Server you can only see runbooks shared in this "
+                "conversation. To search runbooks, ask them to connect the Slack MCP "
+                "Server from your App Home."
+            )
+        else:
+            lines.append("You can only see runbooks shared in this channel.")
     if owner_private(deps) and not deps.is_brief and is_template(soul):
         lines.append("Your soul is still the template: start the onboarding interview.")
     if not deps.is_owner and owner:
@@ -208,6 +210,11 @@ agent = Agent[AgentDeps](
 
 
 async def run_agent(input_items, deps):
+    """Run the personal agent with runbook tools (bot token or MCP) or read-only MCP tools for brief.
+
+    Tool and token selection depends on the requester, where the reply lands, and whether it's a brief.
+    Privacy wins: user tokens attach only to replies only that user sees.
+    """
     async with AsyncOpenAI() as openai_client:
         run_config = RunConfig(
             model_provider=OpenAIProvider(openai_client=openai_client)
