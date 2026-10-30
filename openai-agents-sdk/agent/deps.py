@@ -13,3 +13,4 @@ class AgentDeps:
     user_token: str | None = None
     is_owner: bool = False
     is_private_reply: bool = False
+    is_brief: bool = False

@@ -6,7 +6,11 @@ from agent.access import is_owner, reply_user_token
 
 
 def build_reply_deps(
-    client: WebClient, context: BoltContext, event: dict, is_private_reply: bool
+    client: WebClient,
+    context: BoltContext,
+    event: dict,
+    is_private_reply: bool,
+    is_brief: bool = False,
 ) -> AgentDeps:
     return AgentDeps(
         client=client,
@@ -17,4 +21,5 @@ def build_reply_deps(
         user_token=reply_user_token(context.user_token, is_private_reply),
         is_owner=is_owner(context.user_id),
         is_private_reply=is_private_reply,
+        is_brief=is_brief,
     )

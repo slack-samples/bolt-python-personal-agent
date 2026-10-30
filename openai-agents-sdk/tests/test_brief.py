@@ -2,6 +2,7 @@ import logging
 from unittest.mock import AsyncMock, Mock, patch
 
 from listeners.commands.brief import handle_brief
+from listeners.install_url import connect_message
 
 test_logger = logging.getLogger(__name__)
 
@@ -77,6 +78,8 @@ def test_brief_runs_privately_for_connected_owner(run_agent, monkeypatch):
     assert deps.is_private_reply is True
     assert deps.user_token == "xoxp-1"
     assert deps.is_owner is True
+    assert deps.is_brief is True
+    assert deps.message_ts == ""
     respond.assert_called_once_with(text="Here's what needs attention")
 
 
@@ -101,3 +104,23 @@ def test_brief_acks_before_running(run_agent, monkeypatch):
     ack.assert_called_once()
     respond.assert_called_once()
     assert ":warning:" in respond.call_args.kwargs["text"]
+
+
+@patch("listeners.commands.brief.run_agent", new_callable=AsyncMock)
+def test_brief_points_to_readme_without_oauth(run_agent, monkeypatch):
+    monkeypatch.setenv("OWNER_USER_ID", "U123")
+    monkeypatch.delenv("SLACK_CLIENT_ID", raising=False)
+    respond = Mock()
+
+    handle_brief(
+        ack=Mock(),
+        command={"user_id": "U123", "channel_id": "C123"},
+        client=Mock(),
+        context=Mock(user_token=None),
+        respond=respond,
+        logger=test_logger,
+    )
+
+    run_agent.assert_not_called()
+    assert respond.call_args.kwargs["text"] == connect_message()
+    assert "README.md#slack-mcp-server" in respond.call_args.kwargs["text"]

@@ -1,7 +1,5 @@
 import asyncio
-import os
 from logging import Logger
-from urllib.parse import urljoin
 
 from slack_bolt import BoltContext
 from slack_sdk import WebClient
@@ -9,6 +7,7 @@ from slack_sdk import WebClient
 from agent import AgentDeps, run_agent
 from agent.access import is_owner, owner_user_id
 from agent.brief import BRIEF_PROMPT
+from listeners.install_url import connect_message
 
 
 def handle_brief(
@@ -32,15 +31,7 @@ def handle_brief(
             return
 
         if not context.user_token:
-            if os.environ.get("SLACK_CLIENT_ID"):
-                redirect_uri = os.environ.get("SLACK_REDIRECT_URI", "")
-                install_url = urljoin(redirect_uri, "/slack/install")
-                respond(text=f"Please connect your Slack account first: {install_url}")
-            else:
-                readme_url = "https://github.com/slack-samples/bolt-python-personal-agent/blob/main/openai-agents-sdk/README.md#slack-mcp-server"
-                respond(
-                    text=f"Please connect your Slack account first. See: {readme_url}"
-                )
+            respond(text=connect_message())
             return
 
         deps = AgentDeps(
@@ -52,6 +43,7 @@ def handle_brief(
             user_token=context.user_token,
             is_owner=True,
             is_private_reply=True,
+            is_brief=True,
         )
 
         result = asyncio.run(run_agent(BRIEF_PROMPT, deps))

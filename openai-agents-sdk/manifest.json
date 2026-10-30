@@ -20,6 +20,7 @@
       {
         "command": "/brief",
         "description": "Brief me on what needs my attention",
+        "url": "https://ngrok-free.app/slack/events",
         "should_escape": false
       }
     ]

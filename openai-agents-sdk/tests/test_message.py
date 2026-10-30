@@ -220,3 +220,89 @@ class TestMessage:
 
         run_agent.assert_called_once()
         assert run_agent.call_args.args[0].startswith("Learn from")
+
+    @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
+    def test_owner_reply_in_engaged_thread_uses_no_token(
+        self, run_agent, monkeypatch, fresh_store
+    ):
+        monkeypatch.setenv("OWNER_USER_ID", "U123")
+        fresh_store.set_history("C123", "t1", "U123", [])
+        run_agent.return_value = run_result()
+
+        self.handle(
+            {
+                "channel_type": "channel",
+                "text": "Any update?",
+                "thread_ts": "t1",
+                "ts": "t2",
+            }
+        )
+
+        assert run_agent.call_count == 2
+        _, deps = run_agent.call_args_list[1].args
+        assert deps.is_owner is True
+        assert deps.user_token is None
+        assert deps.is_private_reply is False
+        assert deps.is_brief is False
+
+    @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
+    def test_owner_dm_brief_me_runs_a_brief(self, run_agent, monkeypatch):
+        monkeypatch.setenv("OWNER_USER_ID", "U123")
+        run_agent.return_value = run_result()
+
+        self.handle(
+            {"channel_type": "im", "text": "  Brief me ", "ts": "1700000000.000100"}
+        )
+
+        _, deps = run_agent.call_args.args
+        assert deps.is_brief is True
+        assert deps.is_owner is True
+        assert deps.is_private_reply is True
+        assert deps.user_token == "xoxp-123"
+
+    @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
+    def test_owner_dm_other_text_is_not_a_brief(self, run_agent, monkeypatch):
+        monkeypatch.setenv("OWNER_USER_ID", "U123")
+        run_agent.return_value = run_result()
+
+        self.handle(
+            {
+                "channel_type": "im",
+                "text": "Brief me and then update the deploy runbook",
+                "ts": "1700000000.000100",
+            }
+        )
+
+        _, deps = run_agent.call_args.args
+        assert deps.is_brief is False
+
+    @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
+    def test_guest_dm_brief_me_is_not_a_brief(self, run_agent, monkeypatch):
+        monkeypatch.setenv("OWNER_USER_ID", "U0WNER")
+        run_agent.return_value = run_result()
+
+        self.handle(
+            {"channel_type": "im", "text": "brief me", "ts": "1700000000.000100"}
+        )
+
+        _, deps = run_agent.call_args.args
+        assert deps.is_brief is False
+
+    @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
+    def test_owner_dm_brief_without_token_asks_to_connect(self, run_agent, monkeypatch):
+        monkeypatch.setenv("OWNER_USER_ID", "U123")
+        monkeypatch.setenv("SLACK_CLIENT_ID", "123.456")
+        monkeypatch.setenv("SLACK_REDIRECT_URI", "https://example.com")
+        self.fake_context.user_token = None
+
+        self.handle(
+            {"channel_type": "im", "text": "Brief me", "ts": "1700000000.000100"}
+        )
+
+        run_agent.assert_not_called()
+        self.fake_say.assert_called_once()
+        kwargs = self.fake_say.call_args.kwargs
+        assert kwargs["text"] == (
+            "Please connect your Slack account first: https://example.com/slack/install"
+        )
+        assert kwargs["thread_ts"] == "1700000000.000100"
