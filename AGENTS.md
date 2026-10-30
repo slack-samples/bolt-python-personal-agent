@@ -4,7 +4,11 @@ This file provides guidance to coding agents when working with code in this repo
 
 ## What This Is
 
-A generic Bolt for Python template app used to build Slack apps.
+A Personal Agent for Slack built with Bolt for Python and the OpenAI Agents SDK. The agent answers as its owner's agent and keeps runbooks current. The implementation is in:
+
+- `openai-agents-sdk/`: OpenAI Agents SDK
+
+Work and run commands inside it.
 
 ## Slack Plugin
 
@@ -12,7 +16,7 @@ To install the Slack plugin for your coding agent, follow [Claude Code, Codex, C
 
 ## Before you finish
 
-Run `ruff check .`, `ruff format --check .`, and `pytest`. CI runs the same on every PR.
+Run `ruff check .`, `ruff format --check .`, and `pytest` inside the app directory. CI runs the same on every PR.
 
 ## Code Style
 
