@@ -16,6 +16,7 @@ class TestTools:
                 "permalink": "https://example.slack.com/docs/T1/F123",
             }
         }
+        self.client.conversations_info.return_value = {"channel": {"is_private": False}}
         self.deps = AgentDeps(
             client=self.client,
             user_id="U123",
@@ -285,3 +286,76 @@ class TestTools:
 
         assert result == "That runbook isn't available here."
         assert not self.client.api_call.called
+
+    def runbook_in(self, file_id, **shared):
+        return {
+            "id": file_id,
+            "title": f"Runbook: {file_id}",
+            "permalink": f"https://example.com/{file_id}",
+            **shared,
+        }
+
+    def test_private_channel_listed_under_channels_is_not_public(self):
+        self.client.files_list.return_value = {
+            "files": [self.runbook_in("F_SECRET", channels=["C_SECRET"])]
+        }
+        self.client.conversations_info.return_value = {"channel": {"is_private": True}}
+
+        result = invoke(list_runbooks, self.deps)
+
+        self.client.conversations_info.assert_called_once_with(channel="C_SECRET")
+        assert "F_SECRET" not in result
+
+    def test_runbook_is_not_public_when_conversations_info_fails(self):
+        self.client.files_list.return_value = {
+            "files": [self.runbook_in("F_PUB", channels=["C_PUB"])]
+        }
+        self.client.conversations_info.side_effect = slack_error("missing_scope")
+
+        result = invoke(list_runbooks, self.deps)
+
+        assert "F_PUB" not in result
+
+    def test_runbook_is_not_public_when_is_private_is_missing(self):
+        self.client.files_list.return_value = {
+            "files": [self.runbook_in("F_PUB", channels=["C_PUB"])]
+        }
+        self.client.conversations_info.return_value = {"channel": {}}
+
+        result = invoke(list_runbooks, self.deps)
+
+        assert "F_PUB" not in result
+
+    def test_runbook_is_public_if_any_shared_channel_is_public(self):
+        self.client.files_list.return_value = {
+            "files": [
+                self.runbook_in("F_A", channels=["C_SECRET", "C_PUB"]),
+                self.runbook_in("F_B", channels=["C_PUB"]),
+            ]
+        }
+        self.client.conversations_info.side_effect = lambda channel: {
+            "channel": {"is_private": channel == "C_SECRET"}
+        }
+
+        result = invoke(list_runbooks, self.deps)
+
+        assert "F_A" in result
+        assert "F_B" in result
+        looked_up = [
+            c.kwargs["channel"] for c in self.client.conversations_info.call_args_list
+        ]
+        assert sorted(looked_up) == ["C_PUB", "C_SECRET"]
+
+    def test_null_channels_and_groups_are_not_shared(self):
+        self.client.files_list.return_value = {
+            "files": [self.runbook_in("F_NULL", channels=None, groups=None)]
+        }
+        self.deps.is_private_reply = True
+        self.client.users_conversations.return_value = {
+            "channels": [{"id": "C123"}],
+            "response_metadata": {},
+        }
+
+        result = invoke(list_runbooks, self.deps)
+
+        assert "F_NULL" not in result
