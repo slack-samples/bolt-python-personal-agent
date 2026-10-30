@@ -5,7 +5,8 @@ from logging import Logger
 from slack_bolt import BoltContext, Say, SayStream, SetStatus
 from slack_sdk import WebClient
 
-from agent import AgentDeps, run_agent
+from agent import run_agent
+from listeners.events.reply_deps import build_reply_deps
 from listeners.views.feedback_builder import build_feedback_blocks
 from thread_context import conversation_store
 
@@ -26,7 +27,6 @@ def handle_app_mentioned(
         thread_ts = event.get("thread_ts") or event["ts"]
         user_id = context.user_id
 
-        # Strip the bot mention from the text
         cleaned_text = re.sub(r"<@[A-Z0-9]+>", "", text).strip()
 
         if not cleaned_text:
@@ -36,7 +36,6 @@ def handle_app_mentioned(
             )
             return
 
-        # Set assistant thread status with loading messages
         set_status(
             status="Thinking...",
             loading_messages=[
@@ -48,33 +47,21 @@ def handle_app_mentioned(
             ],
         )
 
-        # Get conversation history
         history = conversation_store.get_history(channel_id, thread_ts, user_id)
 
-        # Build input for the agent
         if history:
             input_items = history + [{"role": "user", "content": cleaned_text}]
         else:
             input_items = cleaned_text
 
-        # Run the agent
-        deps = AgentDeps(
-            client=client,
-            user_id=user_id,
-            channel_id=channel_id,
-            thread_ts=thread_ts,
-            message_ts=event["ts"],
-            user_token=context.user_token,
-        )
+        deps = build_reply_deps(client, context, event, is_private_reply=False)
         result = asyncio.run(run_agent(input_items, deps))
 
-        # Stream response in thread with feedback buttons
         streamer = say_stream()
         streamer.append(markdown_text=result.final_output)
         feedback_blocks = build_feedback_blocks()
         streamer.stop(blocks=feedback_blocks)
 
-        # Store conversation history
         conversation_store.set_history(
             channel_id, thread_ts, user_id, result.to_input_list()
         )

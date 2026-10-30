@@ -1,13 +1,22 @@
 import logging
 from unittest.mock import AsyncMock, Mock, patch
 
+import pytest
 from agents import RunResult
 from slack_bolt import BoltContext
 from slack_sdk import WebClient
 
 from listeners.events.message import handle_message
+from thread_context.store import ConversationStore
 
 test_logger = logging.getLogger(__name__)
+
+
+@pytest.fixture(autouse=True)
+def fresh_store():
+    store = ConversationStore()
+    with patch("listeners.events.message.conversation_store", store):
+        yield store
 
 
 def run_result(*tool_names):
@@ -40,7 +49,7 @@ class TestMessage:
         )
 
     @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
-    def test_learns_from_a_channel_message_as_its_author(self, run_agent):
+    def test_learns_with_bot_token_only(self, run_agent):
         run_agent.return_value = run_result("slack_update_canvas")
 
         self.handle(
@@ -56,7 +65,9 @@ class TestMessage:
         assert learn_input.startswith("Learn from this channel message")
         assert "rotate the signing secret" in learn_input
         assert deps.user_id == "U123"
-        assert deps.user_token == "xoxp-123"
+        assert deps.user_token is None
+        assert deps.is_owner is False
+        assert deps.is_private_reply is False
         kwargs = self.fake_client.chat_postEphemeral.call_args.kwargs
         assert kwargs["user"] == "U123"
         assert kwargs["thread_ts"] == "1700000000.000100"
@@ -154,3 +165,58 @@ class TestMessage:
 
         for call in run_agent.call_args_list:
             assert not str(call.args[0]).startswith("Learn from")
+
+    @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
+    def test_dm_uses_requesters_token_privately(self, run_agent):
+        run_agent.return_value = run_result()
+
+        self.handle(
+            {"channel_type": "im", "text": "What's new?", "ts": "1700000000.000100"}
+        )
+
+        _, deps = run_agent.call_args.args
+        assert deps.user_token == "xoxp-123"
+        assert deps.is_private_reply is True
+
+    @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
+    def test_teammate_reply_in_engaged_thread_excludes_owner_history(
+        self, run_agent, monkeypatch, fresh_store
+    ):
+        monkeypatch.setenv("OWNER_USER_ID", "U0WNER")
+        fresh_store.set_history(
+            "C123", "t1", "U0WNER", [{"role": "user", "content": "owner secret"}]
+        )
+        run_agent.return_value = run_result()
+
+        self.handle(
+            {
+                "channel_type": "channel",
+                "text": "Any update?",
+                "thread_ts": "t1",
+                "ts": "t2",
+            }
+        )
+
+        assert run_agent.call_count == 2
+        reply_input, deps = run_agent.call_args_list[1].args
+        assert reply_input == "Any update?"
+        assert deps.user_id == "U123"
+        assert deps.user_token is None
+        assert deps.is_owner is False
+        assert deps.is_private_reply is False
+
+    @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
+    def test_thread_reply_ignored_when_thread_not_engaged(self, run_agent):
+        run_agent.return_value = run_result()
+
+        self.handle(
+            {
+                "channel_type": "channel",
+                "text": "Any update?",
+                "thread_ts": "t1",
+                "ts": "t2",
+            }
+        )
+
+        run_agent.assert_called_once()
+        assert run_agent.call_args.args[0].startswith("Learn from")

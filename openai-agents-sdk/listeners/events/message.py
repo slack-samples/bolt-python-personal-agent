@@ -5,6 +5,7 @@ from slack_bolt import BoltContext, Say, SayStream, SetStatus
 from slack_sdk import WebClient
 
 from agent import AgentDeps, run_agent
+from listeners.events.reply_deps import build_reply_deps
 from listeners.views.feedback_builder import build_feedback_blocks
 from thread_context import conversation_store
 
@@ -41,7 +42,9 @@ def handle_message(
                 channel_id=context.channel_id,
                 thread_ts=event.get("thread_ts") or event["ts"],
                 message_ts=event["ts"],
-                user_token=context.user_token,
+                user_token=None,
+                is_owner=False,
+                is_private_reply=False,
             )
             result = asyncio.run(
                 run_agent(
@@ -61,7 +64,6 @@ def handle_message(
         except Exception:
             logger.exception("Failed to learn from message")
 
-    # Skip message subtypes (edits, deletes, etc.).
     if event.get("subtype"):
         return
 
@@ -71,7 +73,6 @@ def handle_message(
         if not conversation_store.has_thread(context.channel_id, event["thread_ts"]):
             return
     else:
-        # Top-level channel messages are handled by app_mentioned
         return
 
     try:
@@ -81,10 +82,8 @@ def handle_message(
 
         user_id = context.user_id
 
-        # Get conversation history
         history = conversation_store.get_history(channel_id, thread_ts, user_id)
 
-        # Set assistant thread status with loading messages
         set_status(
             status="Thinking...",
             loading_messages=[
@@ -96,30 +95,19 @@ def handle_message(
             ],
         )
 
-        # Build input for the agent
         if history:
             input_items = history + [{"role": "user", "content": text}]
         else:
             input_items = text
 
-        # Run the agent
-        deps = AgentDeps(
-            client=client,
-            user_id=user_id,
-            channel_id=channel_id,
-            thread_ts=thread_ts,
-            message_ts=event["ts"],
-            user_token=context.user_token,
-        )
+        deps = build_reply_deps(client, context, event, is_private_reply=is_dm)
         result = asyncio.run(run_agent(input_items, deps))
 
-        # Stream response in thread with feedback buttons
         streamer = say_stream()
         streamer.append(markdown_text=result.final_output)
         feedback_blocks = build_feedback_blocks()
         streamer.stop(blocks=feedback_blocks)
 
-        # Store conversation history
         conversation_store.set_history(
             channel_id, thread_ts, user_id, result.to_input_list()
         )
