@@ -1,20 +1,14 @@
 def build_app_home_view(
-    install_url: str | None = None, is_connected: bool = False
+    install_url: str | None = None,
+    is_connected: bool = False,
+    soul_status: str | None = None,
 ) -> dict:
-    """Build the App Home Block Kit view.
-
-    Args:
-        install_url: OAuth install URL. When provided, the user has not
-            connected and will see a link to install.
-        is_connected: When ``True``, the user is connected and the MCP
-            status section shows as connected.
-    """
     blocks = [
         {
             "type": "header",
             "text": {
                 "type": "plain_text",
-                "text": "Hey there :wave: I'm your team agent.",
+                "text": "Hey there :wave: I'm a personal agent.",
             },
         },
         {
@@ -22,15 +16,34 @@ def build_app_home_view(
             "text": {
                 "type": "mrkdwn",
                 "text": (
-                    "I keep your team's runbooks current and help route requests.\n\n"
-                    "*Invite me to your team channel* and I'll add what your threads "
-                    "figure out to runbooks as they wrap up. *Mention me* or *send me a "
-                    "direct message* to find a runbook or triage a request."
+                    "I answer as my owner's agent, keep runbooks current, "
+                    "and never decide for my owner."
                 ),
             },
         },
         {"type": "divider"},
     ]
+
+    if soul_status == "template":
+        blocks.append(
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": ":sparkles: *Your soul isn't set up yet.* Send me a DM and I'll interview you.",
+                },
+            }
+        )
+    elif soul_status == "personalized":
+        blocks.append(
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": ':white_check_mark: *Your soul is set up.* Say "update my soul" anytime.',
+                },
+            }
+        )
 
     if is_connected:
         blocks.append(
@@ -80,7 +93,7 @@ def build_app_home_view(
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": "\U0001f534 *Slack MCP Server is disconnected.* <https://github.com/slack-samples/bolt-python-team-agent/blob/main/openai-agents-sdk/README.md#slack-mcp-server|Learn how to enable the Slack MCP Server.>",
+                    "text": "\U0001f534 *Slack MCP Server is disconnected.* <https://github.com/slack-samples/bolt-python-personal-agent/blob/main/openai-agents-sdk/README.md#slack-mcp-server|Learn how to enable the Slack MCP Server.>",
                 },
             }
         )

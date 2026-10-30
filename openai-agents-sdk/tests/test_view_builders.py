@@ -53,3 +53,40 @@ def test_build_app_home_view_connected():
     ]
     mcp_section = next(t for t in section_texts if "Slack MCP Server" in t)
     assert "connected" in mcp_section
+
+
+def test_build_app_home_view_soul_status_template():
+    """soul_status='template' — shows setup prompt."""
+    view = build_app_home_view(soul_status="template")
+
+    section_texts = [
+        b["text"]["text"] for b in view["blocks"] if b["type"] == "section"
+    ]
+    soul_section = next((t for t in section_texts if "soul" in t.lower()), None)
+    assert soul_section is not None
+    assert "isn't set up" in soul_section
+    assert ":sparkles:" in soul_section
+
+
+def test_build_app_home_view_soul_status_personalized():
+    """soul_status='personalized' — shows personalized status."""
+    view = build_app_home_view(soul_status="personalized")
+
+    section_texts = [
+        b["text"]["text"] for b in view["blocks"] if b["type"] == "section"
+    ]
+    soul_section = next((t for t in section_texts if "soul" in t.lower()), None)
+    assert soul_section is not None
+    assert "is set up" in soul_section
+    assert ":white_check_mark:" in soul_section
+
+
+def test_build_app_home_view_soul_status_none():
+    """soul_status=None — no soul status section."""
+    view = build_app_home_view(soul_status=None)
+
+    section_texts = [
+        b["text"]["text"] for b in view["blocks"] if b["type"] == "section"
+    ]
+    soul_sections = [t for t in section_texts if "soul" in t.lower()]
+    assert len(soul_sections) == 0

@@ -1,5 +1,5 @@
 import logging
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from slack_bolt import BoltContext
 from slack_sdk import WebClient
@@ -55,3 +55,70 @@ class TestAppHomeOpened:
 
         self.fake_client.views_publish.assert_called_once()
         assert "test exception" in caplog.text
+
+    def test_messages_tab_owner_prompts(self, monkeypatch):
+        monkeypatch.setenv("OWNER_USER_ID", "U123")
+        self.fake_context.user_id = "U123"
+
+        handle_app_home_opened(
+            client=self.fake_client,
+            event={"tab": "messages", "channel": "D123"},
+            context=self.fake_context,
+            logger=test_logger,
+        )
+
+        kwargs = self.fake_client.assistant_threads_setSuggestedPrompts.call_args.kwargs
+        prompts = kwargs["prompts"]
+        prompt_titles = [p["title"] for p in prompts]
+        assert "Brief me" in prompt_titles
+        assert "Update my soul" in prompt_titles
+
+    def test_messages_tab_guest_prompts(self, monkeypatch):
+        monkeypatch.setenv("OWNER_USER_ID", "UOWNER")
+        self.fake_context.user_id = "UGUEST"
+
+        handle_app_home_opened(
+            client=self.fake_client,
+            event={"tab": "messages", "channel": "D123"},
+            context=self.fake_context,
+            logger=test_logger,
+        )
+
+        kwargs = self.fake_client.assistant_threads_setSuggestedPrompts.call_args.kwargs
+        prompts = kwargs["prompts"]
+        prompt_titles = [p["title"] for p in prompts]
+        assert "Ask what they're working on" in prompt_titles
+        assert "Brief me" not in prompt_titles
+
+    def test_home_shows_soul_status_for_owner(self, monkeypatch):
+        monkeypatch.setenv("OWNER_USER_ID", "U123")
+        self.fake_context.user_id = "U123"
+
+        with patch("listeners.events.app_home_opened.load_soul") as mock_load_soul:
+            mock_load_soul.return_value = "<!-- soul-template -->\nTemplate content"
+
+            handle_app_home_opened(
+                client=self.fake_client,
+                event={"tab": "home", "channel": "D123"},
+                context=self.fake_context,
+                logger=test_logger,
+            )
+
+            kwargs = self.fake_client.views_publish.call_args.kwargs
+            view_text = str(kwargs["view"])
+            assert "isn't set up" in view_text
+
+    def test_home_hides_soul_status_for_guest(self, monkeypatch):
+        monkeypatch.setenv("OWNER_USER_ID", "UOWNER")
+        self.fake_context.user_id = "UGUEST"
+
+        handle_app_home_opened(
+            client=self.fake_client,
+            event={"tab": "home", "channel": "D123"},
+            context=self.fake_context,
+            logger=test_logger,
+        )
+
+        kwargs = self.fake_client.views_publish.call_args.kwargs
+        view_text = str(kwargs["view"])
+        assert "soul" not in view_text.lower()
