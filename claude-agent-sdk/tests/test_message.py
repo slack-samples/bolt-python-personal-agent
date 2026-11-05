@@ -86,7 +86,10 @@ class TestMessage:
         self, run_agent, fresh_store
     ):
         fresh_store.set_session("C123", "t1", "U123", "reply-session")
-        run_agent.return_value = run_result("mcp__agent-tools__create_runbook")
+        run_agent.side_effect = [
+            AgentResult("On it.", "next-reply-session", []),
+            AgentResult(LEARNED, "learn-session", ["mcp__agent-tools__create_runbook"]),
+        ]
 
         await self.handle(
             {
@@ -98,10 +101,11 @@ class TestMessage:
             }
         )
 
-        run_agent.assert_awaited_once()
-        assert "session_id" not in run_agent.call_args.kwargs
-        assert run_agent.call_args.kwargs["persist_session"] is False
-        assert fresh_store.get_session("C123", "t1", "U123") == "reply-session"
+        learn_call = run_agent.call_args_list[1]
+        assert learn_call.args[0].startswith("Learn from")
+        assert "session_id" not in learn_call.kwargs
+        assert learn_call.kwargs["persist_session"] is False
+        assert fresh_store.get_session("C123", "t1", "U123") == "next-reply-session"
 
     @pytest.mark.asyncio
     @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
@@ -421,3 +425,60 @@ class TestMessage:
         streamer.append.assert_awaited_once()
         assert "learning failed" in caplog.text
         self.fake_say.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
+    async def test_dm_with_a_file_gets_a_reply(self, run_agent):
+        run_agent.return_value = run_result()
+
+        await self.handle(
+            {
+                "channel_type": "im",
+                "subtype": "file_share",
+                "text": "Can you check this log?",
+                "ts": "t1",
+            }
+        )
+
+        run_agent.assert_awaited_once()
+        assert run_agent.call_args.args[0] == "Can you check this log?"
+
+    @pytest.mark.asyncio
+    @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
+    async def test_dm_with_only_a_file_gets_a_reply(self, run_agent):
+        run_agent.return_value = run_result()
+
+        await self.handle({"channel_type": "im", "subtype": "file_share", "ts": "t1"})
+
+        run_agent.assert_awaited_once()
+        assert run_agent.call_args.args[0] == ""
+
+    @pytest.mark.asyncio
+    @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
+    async def test_file_share_in_engaged_thread_gets_a_reply(
+        self, run_agent, fresh_store
+    ):
+        fresh_store.set_session("C123", "t1", "U123", "owner-session")
+        run_agent.return_value = run_result()
+
+        await self.handle(
+            {
+                "channel_type": "channel",
+                "subtype": "file_share",
+                "text": "Here's the trace",
+                "thread_ts": "t1",
+                "ts": "t2",
+            }
+        )
+
+        assert run_agent.await_count == 2
+        assert run_agent.call_args_list[0].args[0] == "Here's the trace"
+
+    @pytest.mark.asyncio
+    @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
+    async def test_dm_edits_get_no_reply(self, run_agent):
+        await self.handle(
+            {"channel_type": "im", "subtype": "message_changed", "ts": "t1"}
+        )
+
+        run_agent.assert_not_called()

@@ -45,7 +45,7 @@ async def handle_message(
 
 
 def should_reply(context: AsyncBoltContext, event: dict, is_dm: bool) -> bool:
-    if event.get("subtype"):
+    if event.get("subtype") not in LEARNED_SUBTYPES:
         return False
     if is_dm:
         return True

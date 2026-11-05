@@ -401,3 +401,52 @@ class TestMessage:
         say_stream.return_value.append.assert_called_once()
         assert "learning failed" in caplog.text
         self.fake_say.assert_not_called()
+
+    @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
+    def test_dm_with_a_file_gets_a_reply(self, run_agent):
+        run_agent.return_value = run_result()
+
+        self.handle(
+            {
+                "channel_type": "im",
+                "subtype": "file_share",
+                "text": "Can you check this log?",
+                "ts": "t1",
+            }
+        )
+
+        run_agent.assert_called_once()
+        assert run_agent.call_args.args[0] == "Can you check this log?"
+
+    @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
+    def test_dm_with_only_a_file_gets_a_reply(self, run_agent):
+        run_agent.return_value = run_result()
+
+        self.handle({"channel_type": "im", "subtype": "file_share", "ts": "t1"})
+
+        run_agent.assert_called_once()
+        assert run_agent.call_args.args[0] == ""
+
+    @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
+    def test_file_share_in_engaged_thread_gets_a_reply(self, run_agent, fresh_store):
+        fresh_store.set_history("C123", "t1", "U123", [])
+        run_agent.return_value = run_result()
+
+        self.handle(
+            {
+                "channel_type": "channel",
+                "subtype": "file_share",
+                "text": "Here's the trace",
+                "thread_ts": "t1",
+                "ts": "t2",
+            }
+        )
+
+        assert run_agent.call_count == 2
+        assert run_agent.call_args_list[0].args[0] == "Here's the trace"
+
+    @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
+    def test_dm_edits_get_no_reply(self, run_agent):
+        self.handle({"channel_type": "im", "subtype": "message_changed", "ts": "t1"})
+
+        run_agent.assert_not_called()
