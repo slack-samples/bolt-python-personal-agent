@@ -40,6 +40,7 @@ class TestMessage:
         self.fake_context.channel_id = "C123"
         self.fake_context.user_id = "U123"
         self.fake_context.user_token = "xoxp-123"
+        self.fake_context.bot_user_id = "UBOT"
         self.fake_say = AsyncMock()
 
     async def handle(self, event):
@@ -303,3 +304,43 @@ class TestMessage:
         assert deps.is_brief is False
         assert deps.is_owner is True
         assert deps.is_private_reply is True
+
+    @pytest.mark.asyncio
+    @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
+    async def test_mention_in_engaged_thread_is_left_to_app_mention(
+        self, run_agent, fresh_store
+    ):
+        fresh_store.set_session("C123", "t1", "U123", "owner-session")
+        run_agent.return_value = run_result()
+        say_stream = AsyncMock(return_value=make_streamer())
+
+        await handle_message(
+            client=self.fake_client,
+            context=self.fake_context,
+            event={
+                "channel_type": "channel",
+                "text": "<@UBOT> any update?",
+                "thread_ts": "t1",
+                "ts": "t2",
+            },
+            logger=test_logger,
+            say=self.fake_say,
+            say_stream=say_stream,
+            set_status=AsyncMock(),
+        )
+
+        run_agent.assert_awaited_once()
+        assert run_agent.call_args.args[0].startswith("Learn from")
+        say_stream.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
+    async def test_dm_that_mentions_the_agent_still_gets_a_reply(self, run_agent):
+        run_agent.return_value = run_result()
+
+        await self.handle(
+            {"channel_type": "im", "text": "<@UBOT> what's new?", "ts": "t1"}
+        )
+
+        run_agent.assert_awaited_once()
+        assert run_agent.call_args.args[0] == "<@UBOT> what's new?"

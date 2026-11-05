@@ -65,6 +65,8 @@ def handle_message(
 
     if is_dm:
         pass
+    elif f"<@{context.bot_user_id}>" in event.get("text", ""):
+        return
     elif is_thread_reply:
         if not conversation_store.has_thread(context.channel_id, event["thread_ts"]):
             return
