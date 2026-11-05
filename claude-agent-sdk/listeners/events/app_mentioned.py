@@ -23,6 +23,9 @@ async def handle_app_mentioned(
     set_status: AsyncSetStatus,
 ):
     """Handle @mentions in channels."""
+    if event.get("bot_id"):
+        return
+
     try:
         channel_id = context.channel_id
         text = event.get("text", "")

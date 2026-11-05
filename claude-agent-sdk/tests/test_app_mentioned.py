@@ -98,3 +98,28 @@ async def test_mention_resumes_only_the_requesters_session(run_agent, fresh_stor
     assert run_agent.call_args.kwargs["session_id"] is None
     assert fresh_store.get_session("C123", "t1", "U123") == "guest-session"
     assert fresh_store.get_session("C123", "t1", "U0WNER") == "owner-session"
+
+
+@pytest.mark.asyncio
+@patch("listeners.events.app_mentioned.run_agent", new_callable=AsyncMock)
+async def test_mention_from_a_bot_is_ignored(run_agent):
+    say = AsyncMock()
+    say_stream = AsyncMock()
+
+    await handle_app_mentioned(
+        client=Mock(AsyncWebClient),
+        context=Mock(AsyncBoltContext),
+        event={
+            "bot_id": "B456",
+            "text": "<@B123> can you check this?",
+            "ts": "1700000000.000100",
+        },
+        logger=test_logger,
+        say=say,
+        say_stream=say_stream,
+        set_status=AsyncMock(),
+    )
+
+    run_agent.assert_not_called()
+    say.assert_not_called()
+    say_stream.assert_not_called()

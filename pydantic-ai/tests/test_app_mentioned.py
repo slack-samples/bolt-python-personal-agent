@@ -112,3 +112,27 @@ def test_mention_resumes_only_the_requesters_history(run_agent, fresh_store):
     mention(mention_context("U0GUEST"), text="<@B123> and now?")
 
     assert run_agent.call_args.kwargs["message_history"] == guest_messages
+
+
+@patch("listeners.events.app_mentioned.run_agent", new_callable=AsyncMock)
+def test_mention_from_a_bot_is_ignored(run_agent):
+    say = Mock()
+    say_stream = Mock()
+
+    handle_app_mentioned(
+        client=Mock(WebClient),
+        context=Mock(BoltContext),
+        event={
+            "bot_id": "B456",
+            "text": "<@B123> can you check this?",
+            "ts": "1700000000.000100",
+        },
+        logger=test_logger,
+        say=say,
+        say_stream=say_stream,
+        set_status=Mock(),
+    )
+
+    run_agent.assert_not_called()
+    say.assert_not_called()
+    say_stream.assert_not_called()
