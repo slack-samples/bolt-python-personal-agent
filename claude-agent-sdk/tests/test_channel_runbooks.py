@@ -39,3 +39,18 @@ async def test_channel_runbooks_filters_by_title_and_channel():
     assert len(runbooks) == 2
     assert runbooks[0]["title"] == "Runbook: Deploy"
     assert runbooks[1]["title"] == "Runbook: Shared"
+
+
+@pytest.mark.asyncio
+async def test_channel_runbooks_includes_runbooks_shared_in_the_current_dm():
+    client = AsyncMock()
+    client.files_list.return_value = {
+        "files": [
+            {"title": "Runbook: Mine", "channels": [], "groups": [], "ims": ["D123"]},
+            {"title": "Runbook: Theirs", "channels": [], "ims": ["D456"]},
+        ]
+    }
+    deps = make_deps(client)
+    deps.channel_id = "D123"
+    runbooks = await channel_runbooks(deps)
+    assert [runbook["title"] for runbook in runbooks] == ["Runbook: Mine"]

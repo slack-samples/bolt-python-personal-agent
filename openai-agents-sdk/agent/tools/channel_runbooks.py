@@ -4,7 +4,11 @@ RUNBOOK_PREFIX = "Runbook:"
 
 
 def shared_in(runbook: dict) -> list[str]:
-    return (runbook.get("channels") or []) + (runbook.get("groups") or [])
+    return (
+        (runbook.get("channels") or [])
+        + (runbook.get("groups") or [])
+        + (runbook.get("ims") or [])
+    )
 
 
 def channel_runbooks(deps: AgentDeps) -> list[dict]:

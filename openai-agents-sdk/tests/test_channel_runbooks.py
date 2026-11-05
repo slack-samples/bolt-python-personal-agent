@@ -39,3 +39,22 @@ def test_channel_runbooks_filters_by_title_and_channel():
     assert len(runbooks) == 2
     assert runbooks[0]["title"] == "Runbook: Deploy"
     assert runbooks[1]["title"] == "Runbook: Shared"
+
+
+def test_channel_runbooks_includes_runbooks_shared_in_the_current_dm():
+    client = Mock()
+    client.files_list.return_value = {
+        "files": [
+            {"title": "Runbook: Mine", "channels": [], "groups": [], "ims": ["D123"]},
+            {"title": "Runbook: Theirs", "channels": [], "ims": ["D456"]},
+        ]
+    }
+    deps = AgentDeps(
+        client=client,
+        user_id="U123",
+        channel_id="D123",
+        thread_ts="1234.56",
+        message_ts="1234.56",
+    )
+    runbooks = channel_runbooks(deps)
+    assert [runbook["title"] for runbook in runbooks] == ["Runbook: Mine"]
