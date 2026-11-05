@@ -203,7 +203,7 @@ class TestMessage:
         )
 
         assert run_agent.call_count == 2
-        reply_call = run_agent.call_args_list[1]
+        reply_call = run_agent.call_args_list[0]
         reply_input, deps = reply_call.args
         assert reply_input == "Any update?"
         assert reply_call.kwargs["message_history"] is None
@@ -246,7 +246,7 @@ class TestMessage:
         )
 
         assert run_agent.call_count == 2
-        _, deps = run_agent.call_args_list[1].args
+        _, deps = run_agent.call_args_list[0].args
         assert deps.is_owner is True
         assert deps.user_token is None
         assert deps.is_private_reply is False
@@ -328,3 +328,76 @@ class TestMessage:
 
         run_agent.assert_called_once()
         assert run_agent.call_args.args[0] == "<@UBOT> what's new?"
+
+    def handle_in_engaged_thread(self, fresh_store, say_stream):
+        fresh_store.set_history("C123", "t1", "U123", [])
+        handle_message(
+            client=self.fake_client,
+            context=self.fake_context,
+            event={
+                "channel_type": "channel",
+                "text": "Any update?",
+                "thread_ts": "t1",
+                "ts": "t2",
+            },
+            logger=test_logger,
+            say=self.fake_say,
+            say_stream=say_stream,
+            set_status=Mock(),
+        )
+
+    @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
+    def test_replies_before_learning(self, run_agent, fresh_store):
+        say_stream = Mock()
+        replied_before_learning = []
+
+        async def respond(agent_input, deps, **kwargs):
+            if str(agent_input).startswith("Learn from"):
+                replied_before_learning.append(
+                    say_stream.return_value.append.call_count == 1
+                )
+            return run_result()
+
+        run_agent.side_effect = respond
+
+        self.handle_in_engaged_thread(fresh_store, say_stream)
+
+        assert run_agent.call_count == 2
+        assert run_agent.call_args_list[0].args[0] == "Any update?"
+        assert replied_before_learning == [True]
+
+    @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
+    def test_learns_when_the_reply_fails(self, run_agent, fresh_store):
+        run_agent.side_effect = [
+            Exception("reply failed"),
+            run_result("create_runbook"),
+        ]
+
+        self.handle_in_engaged_thread(fresh_store, Mock())
+
+        assert "reply failed" in self.fake_say.call_args.kwargs["text"]
+        self.fake_client.chat_postEphemeral.assert_called_once()
+
+    @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
+    def test_learns_when_the_error_reply_fails(self, run_agent, fresh_store):
+        run_agent.side_effect = [
+            Exception("reply failed"),
+            run_result("create_runbook"),
+        ]
+        self.fake_say.side_effect = Exception("say failed")
+
+        with pytest.raises(Exception, match="say failed"):
+            self.handle_in_engaged_thread(fresh_store, Mock())
+
+        self.fake_client.chat_postEphemeral.assert_called_once()
+
+    @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
+    def test_reply_survives_a_learning_failure(self, run_agent, fresh_store, caplog):
+        run_agent.side_effect = [run_result(), Exception("learning failed")]
+        say_stream = Mock()
+
+        self.handle_in_engaged_thread(fresh_store, say_stream)
+
+        say_stream.return_value.append.assert_called_once()
+        assert "learning failed" in caplog.text
+        self.fake_say.assert_not_called()

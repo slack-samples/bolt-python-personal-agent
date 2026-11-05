@@ -237,7 +237,7 @@ class TestMessage:
         )
 
         assert run_agent.call_count == 2
-        reply_call = run_agent.call_args_list[1]
+        reply_call = run_agent.call_args_list[0]
         reply_input, deps = reply_call.args
         assert reply_input == "Any update?"
         assert reply_call.kwargs["session_id"] is None
@@ -282,7 +282,7 @@ class TestMessage:
         )
 
         assert run_agent.call_count == 2
-        reply_call = run_agent.call_args_list[1]
+        reply_call = run_agent.call_args_list[0]
         _, deps = reply_call.args
         assert reply_call.kwargs["session_id"] == "owner-session"
         assert deps.is_owner is True
@@ -344,3 +344,80 @@ class TestMessage:
 
         run_agent.assert_awaited_once()
         assert run_agent.call_args.args[0] == "<@UBOT> what's new?"
+
+    async def handle_in_engaged_thread(self, fresh_store, streamer):
+        fresh_store.set_session("C123", "t1", "U123", "owner-session")
+        await handle_message(
+            client=self.fake_client,
+            context=self.fake_context,
+            event={
+                "channel_type": "channel",
+                "text": "Any update?",
+                "thread_ts": "t1",
+                "ts": "t2",
+            },
+            logger=test_logger,
+            say=self.fake_say,
+            say_stream=AsyncMock(return_value=streamer),
+            set_status=AsyncMock(),
+        )
+
+    @pytest.mark.asyncio
+    @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
+    async def test_replies_before_learning(self, run_agent, fresh_store):
+        streamer = make_streamer()
+        replied_before_learning = []
+
+        async def respond(agent_input, deps, **kwargs):
+            if agent_input.startswith("Learn from"):
+                replied_before_learning.append(streamer.append.await_count == 1)
+            return run_result()
+
+        run_agent.side_effect = respond
+
+        await self.handle_in_engaged_thread(fresh_store, streamer)
+
+        assert run_agent.await_count == 2
+        assert run_agent.call_args_list[0].args[0] == "Any update?"
+        assert replied_before_learning == [True]
+
+    @pytest.mark.asyncio
+    @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
+    async def test_learns_when_the_reply_fails(self, run_agent, fresh_store):
+        run_agent.side_effect = [
+            Exception("reply failed"),
+            run_result("mcp__agent-tools__create_runbook"),
+        ]
+
+        await self.handle_in_engaged_thread(fresh_store, make_streamer())
+
+        assert "reply failed" in self.fake_say.call_args.kwargs["text"]
+        self.fake_client.chat_postEphemeral.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
+    async def test_learns_when_the_error_reply_fails(self, run_agent, fresh_store):
+        run_agent.side_effect = [
+            Exception("reply failed"),
+            run_result("mcp__agent-tools__create_runbook"),
+        ]
+        self.fake_say.side_effect = Exception("say failed")
+
+        with pytest.raises(Exception, match="say failed"):
+            await self.handle_in_engaged_thread(fresh_store, make_streamer())
+
+        self.fake_client.chat_postEphemeral.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
+    async def test_reply_survives_a_learning_failure(
+        self, run_agent, fresh_store, caplog
+    ):
+        run_agent.side_effect = [run_result(), Exception("learning failed")]
+        streamer = make_streamer()
+
+        await self.handle_in_engaged_thread(fresh_store, streamer)
+
+        streamer.append.assert_awaited_once()
+        assert "learning failed" in caplog.text
+        self.fake_say.assert_not_called()
