@@ -5,7 +5,7 @@ from slack_bolt import BoltContext, Say, SayStream, SetStatus
 from slack_sdk import WebClient
 
 from agent import AgentDeps, run_agent
-from listeners.events.reply_deps import build_reply_deps
+from agent.reply_deps import build_reply_deps
 from listeners.views.feedback_builder import build_feedback_blocks
 from thread_context import conversation_store
 

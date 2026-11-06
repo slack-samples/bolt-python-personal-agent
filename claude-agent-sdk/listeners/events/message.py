@@ -7,7 +7,7 @@ from slack_bolt.context.set_status.async_set_status import AsyncSetStatus
 from slack_sdk.web.async_client import AsyncWebClient
 
 from agent import AgentDeps, run_agent
-from listeners.events.reply_deps import build_reply_deps
+from agent.reply_deps import build_reply_deps
 from listeners.views.feedback_builder import build_feedback_blocks
 from thread_context import session_store
 

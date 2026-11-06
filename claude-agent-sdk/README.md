@@ -400,7 +400,6 @@ Every incoming request is routed to a "listener". This directory groups each lis
 - `app_home_opened.py` — Publishes the App Home view with a welcome message and MCP status.
 - `app_mentioned.py` — Responds to @mentions in channels, ignoring mentions from other bots.
 - `message.py` — Responds to direct messages (including ones that share files) and to replies in threads the agent is part of, leaving replies that @mention it to `app_mentioned.py`. After any reply, it learns from channel messages.
-- `reply_deps.py` — Builds `AgentDeps` for replies, selecting tools and tokens based on the requester and audience.
 
 **`/listeners/install_url.py`** — Builds the Slack MCP connect link and message shared by the App Home and `/brief`.
 
@@ -422,6 +421,8 @@ Every incoming request is routed to a "listener". This directory groups each lis
 The `agent.py` file defines the personal agent with a system prompt shaped by `soul.md`. `run_agent()` gives it the bot token's runbook tools, or the Slack MCP Server's runbook tools in a DM with a person who has connected it, or read-only MCP tools for a brief. The app tools run in an in-process MCP server (`agent-tools`), and the Slack MCP Server is added as `slack-mcp`. Every run passes an explicit `allowed_tools` list with `permission_mode="dontAsk"`, disables Claude Code's built-in tools (`tools=[]`), and ignores local settings and MCP configs (`setting_sources=[]`, `strict_mcp_config=True`), so the agent can only call the tools selected for that run.
 
 The `access.py` file decides who the owner is and only attaches a user token to private replies. Tool selection lives in `agent/agent.py`.
+
+The `reply_deps.py` file builds `AgentDeps` for replies, selecting tools and tokens based on the requester and audience.
 
 The `soul.py` file reads and writes `soul.md`.
 
