@@ -428,7 +428,7 @@ The `soul.py` file reads and writes `soul.md`.
 
 The `deps.py` file defines the `AgentDeps` dataclass passed to the agent at runtime, providing access to the Slack client and conversation context. The `context.py` file holds it in a `ContextVar` so the tools can read it.
 
-The `tools` directory contains the runbook tools (`list_runbooks.py`, `read_runbook.py`, `create_runbook.py`), which call `files.list`, `canvases.getContent`, and `canvases.create` with the bot token; `channel_runbooks.py` limits them to runbooks shared in the current conversation; `soul.py` implements `update_soul` (owner-only); `emoji_reaction.py` shows a request was picked up; and `text_result.py` wraps tool output as an MCP text result.
+The `tools` directory contains the runbook tools (`list_runbooks.py`, `read_runbook.py`, `create_runbook.py`), which call `files.list`, `canvases.getContent`, and `canvases.create` with the bot token; `channel_runbooks.py` limits them to runbooks shared in the current conversation; `update_soul.py` implements `update_soul` (owner-only); `emoji_reaction.py` shows a request was picked up; and `text_result.py` wraps tool output as an MCP text result.
 
 ### `/thread_context`
 

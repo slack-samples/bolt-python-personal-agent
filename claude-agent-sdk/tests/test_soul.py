@@ -1,3 +1,4 @@
+import importlib
 from unittest.mock import Mock
 
 import pytest
@@ -5,16 +6,16 @@ from slack_sdk.web.async_client import AsyncWebClient
 
 from agent.deps import AgentDeps
 from agent.soul import is_template, load_soul, save_soul
-from agent.tools.soul import update_soul
+from agent.tools.update_soul import update_soul
 from tests.helpers import invoke
+
+update_soul_module = importlib.import_module("agent.tools.update_soul")
 
 
 @pytest.fixture
 def soul_path(tmp_path, monkeypatch):
     path = tmp_path / "soul.md"
-    import agent.tools.soul
-
-    monkeypatch.setattr(agent.tools.soul, "SOUL_PATH", path)
+    monkeypatch.setattr(update_soul_module, "SOUL_PATH", path)
     return path
 
 
