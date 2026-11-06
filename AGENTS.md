@@ -4,7 +4,7 @@ This file provides guidance to coding agents when working with code in this repo
 
 ## What This Is
 
-A monorepo with three functionally identical implementations of the Personal Agent for Slack built with Bolt for Python, each self-contained with its own `AGENTS.md`. The agent answers as its owner's agent, shaped by `soul.md`, and keeps runbooks current:
+A monorepo with three functionally identical implementations of the Personal Agent for Slack built with Bolt for Python, each self-contained with its own `AGENTS.md`. The agent answers as its owner's agent, shaped by `SOUL.md`, and keeps runbooks current:
 
 - `claude-agent-sdk/`: Claude Agent SDK
 - `openai-agents-sdk/`: OpenAI Agents SDK

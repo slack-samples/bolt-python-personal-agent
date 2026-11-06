@@ -2,8 +2,8 @@ from pathlib import Path
 
 TEMPLATE_MARKER = "<!-- soul-template -->"
 
-SOUL_PATH = Path(__file__).resolve().parent.parent / "soul.md"
-TEMPLATE_PATH = Path(__file__).resolve().parent.parent / "soul.template.md"
+SOUL_PATH = Path(__file__).resolve().parent.parent / "SOUL.md"
+TEMPLATE_PATH = Path(__file__).resolve().parent.parent / "SOUL.template.md"
 
 FALLBACK_TEMPLATE = (
     f"{TEMPLATE_MARKER}\n# Soul\n\n## Identity\n\n## About me\n\n## Goals\n"

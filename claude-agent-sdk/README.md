@@ -1,6 +1,6 @@
 # Personal Agent for Slack (Bolt for Python and Claude Agent SDK)
 
-A personal agent template built with [Bolt for Python](https://docs.slack.dev/tools/bolt-python/) and the [Claude Agent SDK](https://platform.claude.com/docs/en/agent-sdk/overview) using models from [Anthropic](https://www.anthropic.com). An agent that represents you in Slack. It learns who you are from a `soul.md` file, answers questions on your behalf when teammates message it, and quietly builds up runbooks from what it sees in channels. Runbooks are Slack canvases that the agent reads and writes with the bot token, or through the [Slack MCP Server](https://github.com/slackapi/slack-mcp-server) in your DMs with the agent.
+A personal agent template built with [Bolt for Python](https://docs.slack.dev/tools/bolt-python/) and the [Claude Agent SDK](https://platform.claude.com/docs/en/agent-sdk/overview) using models from [Anthropic](https://www.anthropic.com). An agent that represents you in Slack. It learns who you are from a `SOUL.md` file, answers questions on your behalf when teammates message it, and quietly builds up runbooks from what it sees in channels. Runbooks are Slack canvases that the agent reads and writes with the bot token, or through the [Slack MCP Server](https://github.com/slackapi/slack-mcp-server) in your DMs with the agent.
 
 Based on the Team Agent sample (`slack-samples/bolt-python-team-agent`).
 
@@ -9,7 +9,7 @@ Based on the Team Agent sample (`slack-samples/bolt-python-team-agent`).
 The personal agent interacts with users through five entry points:
 
 * **App Home** — Displays a welcome message with instructions on how to interact, plus Slack MCP connection status.
-* **Direct Messages** — Users message the agent directly to ask about your work or find a runbook. It responds in-thread, maintaining context across follow-ups. When you DM it, it can also help you set up your `soul.md` file.
+* **Direct Messages** — Users message the agent directly to ask about your work or find a runbook. It responds in-thread, maintaining context across follow-ups. When you DM it, it can also help you set up your `SOUL.md` file.
 * **Channel @mentions** — Mention the agent in a team channel with a request. It answers from a runbook when one covers it, or offers to start one.
 * **Channel messages** — The agent follows along in channels it's a member of. When a message settles something worth keeping, the agent adds it to runbooks on its own.
 * **Assistant Panel** — Users click _Add Agent_ in Slack, select the agent, and pick from suggested prompts or type a message.
@@ -32,11 +32,11 @@ When the agent changes a runbook, it tells the message's author with an ephemera
 
 The agent represents one person: its owner. Set `OWNER_USER_ID` in your `.env` to your Slack user ID. To find your user ID, click your profile in Slack, then _More_ → _Copy member ID_.
 
-The owner gets access to tools that others don't: `update_soul` (editing `soul.md` in DM) and the `/brief` command.
+The owner gets access to tools that others don't: `update_soul` (editing `SOUL.md` in DM) and the `/brief` command.
 
-### soul.md
+### SOUL.md
 
-The `soul.md` file shapes the agent's voice and how it answers. Copy `soul.template.md` to `soul.md` (the file is gitignored) and fill in:
+The `SOUL.md` file shapes the agent's voice and how it answers. Copy `SOUL.template.md` to `SOUL.md` (the file is gitignored) and fill in:
 
 - **Identity** — the agent's name and voice/operating style
 - **About me** — your name, role, team, timezone, what you work on
@@ -44,7 +44,7 @@ The `soul.md` file shapes the agent's voice and how it answers. Copy `soul.templ
 
 Or, DM the agent and it will interview you to create the file. Later, say "update my soul" or edit the file directly to change it.
 
-> **Warning:** Anything in `soul.md` may be shared with anyone the agent talks to, in DMs and in channels. Put only what you're comfortable with everyone seeing. The agent saves only what you tell it directly in the interview, never content from search results, threads, channels, or canvases.
+> **Warning:** Anything in `SOUL.md` may be shared with anyone the agent talks to, in DMs and in channels. Put only what you're comfortable with everyone seeing. The agent saves only what you tell it directly in the interview, never content from search results, threads, channels, or canvases.
 
 ### Privacy
 
@@ -75,7 +75,7 @@ The agent answers with what it knows and never makes decisions or commitments fo
 
 ### `/brief`
 
-The `/brief` slash command is owner-only. It reads your `soul.md` goals, uses Slack MCP to find recent mentions and requests, and replies ephemerally with what needs your attention, ranked, with permalinks. A brief is read-only: it can search and read, but it can't create or edit canvases or change your soul. Requires the owner to be connected to Slack MCP; otherwise it replies with the install link.
+The `/brief` slash command is owner-only. It reads your `SOUL.md` goals, uses Slack MCP to find recent mentions and requests, and replies ephemerally with what needs your attention, ranked, with permalinks. A brief is read-only: it can search and read, but it can't create or edit canvases or change your soul. Requires the owner to be connected to Slack MCP; otherwise it replies with the install link.
 
 ### Slack MCP Server
 
@@ -224,10 +224,10 @@ ANTHROPIC_API_KEY=YOUR_ANTHROPIC_API_KEY
 OWNER_USER_ID=YOUR_USER_ID
 ```
 
-5. (Optional) Copy `soul.template.md` to `soul.md` and fill in your information, or let the agent interview you when you first DM it:
+5. (Optional) Copy `SOUL.template.md` to `SOUL.md` and fill in your information, or let the agent interview you when you first DM it:
 
 ```sh
-cp soul.template.md soul.md
+cp SOUL.template.md SOUL.md
 ```
 
 ## Development
@@ -418,13 +418,13 @@ Every incoming request is routed to a "listener". This directory groups each lis
 
 ### `/agent`
 
-The `agent.py` file defines the personal agent with a system prompt shaped by `soul.md`. `run_agent()` gives it the bot token's runbook tools, or the Slack MCP Server's runbook tools in a DM with a person who has connected it, or read-only MCP tools for a brief. The app tools run in an in-process MCP server (`agent-tools`), and the Slack MCP Server is added as `slack-mcp`. Every run passes an explicit `allowed_tools` list with `permission_mode="dontAsk"`, disables Claude Code's built-in tools (`tools=[]`), and ignores local settings and MCP configs (`setting_sources=[]`, `strict_mcp_config=True`), so the agent can only call the tools selected for that run.
+The `agent.py` file defines the personal agent with a system prompt shaped by `SOUL.md`. `run_agent()` gives it the bot token's runbook tools, or the Slack MCP Server's runbook tools in a DM with a person who has connected it, or read-only MCP tools for a brief. The app tools run in an in-process MCP server (`agent-tools`), and the Slack MCP Server is added as `slack-mcp`. Every run passes an explicit `allowed_tools` list with `permission_mode="dontAsk"`, disables Claude Code's built-in tools (`tools=[]`), and ignores local settings and MCP configs (`setting_sources=[]`, `strict_mcp_config=True`), so the agent can only call the tools selected for that run.
 
 The `access.py` file decides who the owner is and only attaches a user token to private replies. Tool selection lives in `agent/agent.py`.
 
 The `reply_deps.py` file builds `AgentDeps` for replies, selecting tools and tokens based on the requester and audience.
 
-The `soul.py` file reads and writes `soul.md`.
+The `soul.py` file reads and writes `SOUL.md`.
 
 The `deps.py` file defines the `AgentDeps` dataclass passed to the agent at runtime, providing access to the Slack client and conversation context. The `context.py` file holds it in a `ContextVar` so the tools can read it.
 
@@ -434,9 +434,9 @@ The `tools` directory contains the runbook tools (`list_runbooks.py`, `read_runb
 
 The `store.py` file implements a thread-safe in-memory session ID store, keyed by channel, thread, and requester. The Claude Agent SDK keeps conversation history in its sessions, so only session IDs are tracked here for resuming conversations. This enables multi-turn conversations where the agent remembers previous context within a thread, and ensures one person's tool outputs never enter another person's run in a shared thread.
 
-### `soul.template.md`
+### `SOUL.template.md`
 
-The template for the owner's `soul.md` file, with placeholder sections for Identity, About me, and Goals. Copy it to `soul.md` (gitignored) and fill in, or let the agent create it through an onboarding interview.
+The template for the owner's `SOUL.md` file, with placeholder sections for Identity, About me, and Goals. Copy it to `SOUL.md` (gitignored) and fill in, or let the agent create it through an onboarding interview.
 
 ## Troubleshooting
 

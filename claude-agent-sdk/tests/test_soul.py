@@ -14,7 +14,7 @@ update_soul_module = importlib.import_module("agent.tools.update_soul")
 
 @pytest.fixture
 def soul_path(tmp_path, monkeypatch):
-    path = tmp_path / "soul.md"
+    path = tmp_path / "SOUL.md"
     monkeypatch.setattr(update_soul_module, "SOUL_PATH", path)
     return path
 
@@ -32,14 +32,14 @@ def deps():
 
 
 def test_load_soul_falls_back_to_template_when_missing(tmp_path):
-    nonexistent = tmp_path / "soul.md"
+    nonexistent = tmp_path / "SOUL.md"
     result = load_soul(nonexistent)
     assert "## Goals" in result
     assert is_template(result)
 
 
 def test_load_soul_falls_back_when_unreadable(tmp_path):
-    directory_path = tmp_path / "soul.md"
+    directory_path = tmp_path / "SOUL.md"
     directory_path.mkdir()
     result = load_soul(directory_path)
     assert "## Goals" in result
@@ -47,7 +47,7 @@ def test_load_soul_falls_back_when_unreadable(tmp_path):
 
 
 def test_save_then_load_round_trips(tmp_path):
-    path = tmp_path / "soul.md"
+    path = tmp_path / "SOUL.md"
     content = "# Soul\n## Goals\nShip it"
     save_soul(content, path)
     result = load_soul(path)
@@ -96,6 +96,6 @@ def test_load_soul_falls_back_inline_when_template_unreadable(tmp_path, monkeypa
     import agent.soul
 
     monkeypatch.setattr(agent.soul, "TEMPLATE_PATH", tmp_path / "missing.md")
-    result = load_soul(tmp_path / "soul.md")
+    result = load_soul(tmp_path / "SOUL.md")
     assert is_template(result)
     assert "## Goals" in result
