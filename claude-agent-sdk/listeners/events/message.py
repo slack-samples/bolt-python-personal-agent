@@ -7,13 +7,15 @@ from slack_bolt.context.set_status.async_set_status import AsyncSetStatus
 from slack_sdk.web.async_client import AsyncWebClient
 
 from agent import AgentDeps, run_agent
+from agent.agent import AGENT_TOOLS_SERVER, allowed_tool_name
 from agent.reply_deps import build_reply_deps
+from agent.tools import create_runbook
 from listeners.views.feedback_builder import build_feedback_blocks
 from thread_context import session_store
 
 LEARNED_SUBTYPES = {None, "file_share", "thread_broadcast"}
 
-RUNBOOK_WRITES = {"mcp__agent-tools__create_runbook"}
+RUNBOOK_WRITES = {allowed_tool_name(AGENT_TOOLS_SERVER, create_runbook.name)}
 
 
 async def handle_message(
@@ -34,14 +36,24 @@ async def handle_message(
 
     is_dm = event.get("channel_type") == "im"
 
-    try:
-        if should_reply(context, event, is_dm):
-            await reply_to_message(
-                client, context, event, logger, say, say_stream, set_status, is_dm
-            )
-    finally:
-        if not is_dm and event.get("subtype") in LEARNED_SUBTYPES:
-            await learn_from_message(client, context, event, logger)
+    if should_reply(context, event, is_dm):
+        await reply_to_message(
+            client, context, event, logger, say, say_stream, set_status, is_dm
+        )
+    elif should_learn(context, event, is_dm):
+        await learn_from_message(client, context, event, logger)
+
+
+def mentions_bot(context: AsyncBoltContext, event: dict) -> bool:
+    return f"<@{context.bot_user_id}>" in event.get("text", "")
+
+
+def should_learn(context: AsyncBoltContext, event: dict, is_dm: bool) -> bool:
+    return (
+        not is_dm
+        and event.get("subtype") in LEARNED_SUBTYPES
+        and not mentions_bot(context, event)
+    )
 
 
 def should_reply(context: AsyncBoltContext, event: dict, is_dm: bool) -> bool:
@@ -49,7 +61,7 @@ def should_reply(context: AsyncBoltContext, event: dict, is_dm: bool) -> bool:
         return False
     if is_dm:
         return True
-    if f"<@{context.bot_user_id}>" in event.get("text", ""):
+    if mentions_bot(context, event):
         return False
     thread_ts = event.get("thread_ts")
     return thread_ts is not None and session_store.has_thread(
@@ -70,6 +82,7 @@ async def learn_from_message(
             user_token=None,
             is_owner=False,
             is_private_reply=False,
+            is_learning=True,
         )
         result = await run_agent(
             f"Learn from this channel message:\n\n{event.get('text', '')}",

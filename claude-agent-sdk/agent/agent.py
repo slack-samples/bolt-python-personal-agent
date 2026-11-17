@@ -15,7 +15,7 @@ from claude_agent_sdk.types import McpHttpServerConfig
 from agent.access import owner_user_id, reply_user_token
 from agent.context import agent_deps_var
 from agent.deps import AgentDeps
-from agent.soul import TEMPLATE_MARKER, is_template, load_soul
+from agent.soul import is_template, load_soul
 from agent.tools import (
     add_emoji_reaction,
     create_runbook,
@@ -120,6 +120,8 @@ MAX_TURNS_REPLY = (
     "Send a message and I'll pick up where I left off."
 )
 
+ERROR_REPLY = "Sorry, I couldn't finish that. Please try again."
+
 RUNBOOK_TOOLS = [
     "slack_create_canvas",
     "slack_read_canvas",
@@ -163,17 +165,21 @@ def soul_tools(deps: AgentDeps) -> list[SdkMcpTool]:
     return [update_soul] if owner_private(deps) else []
 
 
+def reaction_tools(deps: AgentDeps) -> list[SdkMcpTool]:
+    return [] if deps.is_learning else [add_emoji_reaction]
+
+
 def local_tools(deps: AgentDeps) -> list[SdkMcpTool]:
     if brief_run(deps):
         return []
-    base = [add_emoji_reaction, create_runbook, list_runbooks, read_runbook]
+    base = [*reaction_tools(deps), create_runbook, list_runbooks, read_runbook]
     return base + soul_tools(deps)
 
 
 def mcp_local_tools(deps: AgentDeps) -> list[SdkMcpTool]:
     if brief_run(deps):
         return []
-    return [add_emoji_reaction, *soul_tools(deps)]
+    return [*reaction_tools(deps), *soul_tools(deps)]
 
 
 def mcp_tool_names(deps: AgentDeps) -> list[str]:
@@ -218,7 +224,7 @@ def conversation_lines(deps: AgentDeps, soul: str) -> list[str]:
 def build_instructions(deps: AgentDeps) -> str:
     soul = load_soul()
     conversation = "\n".join(conversation_lines(deps, soul))
-    soul_text = soul.replace(TEMPLATE_MARKER, "").strip()
+    soul_text = soul.strip()
     return (
         f"{SYSTEM_PROMPT}\n"
         f"## SOUL\n{soul_text}\n\n"
@@ -303,4 +309,6 @@ async def run_agent(
         raise RuntimeError("The agent stopped without a result.")
     if result.subtype == "error_max_turns":
         return AgentResult(MAX_TURNS_REPLY, result.session_id, tool_names)
-    return AgentResult(result.result or "", result.session_id, tool_names)
+    if result.subtype != "success" or not result.result:
+        return AgentResult(ERROR_REPLY, result.session_id, tool_names)
+    return AgentResult(result.result, result.session_id, tool_names)

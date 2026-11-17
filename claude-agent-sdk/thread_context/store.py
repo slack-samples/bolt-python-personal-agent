@@ -7,14 +7,14 @@ class SessionStore:
 
     Stores session IDs keyed by (channel_id, thread_ts, user_id), so each
     requester resumes only their own conversation in a shared thread.
-    Includes TTL-based cleanup and a maximum entry limit.
+    Includes TTL-based cleanup and a maximum conversation limit.
     """
 
-    def __init__(self, ttl_seconds: int = 86400, max_entries: int = 1000):
+    def __init__(self, ttl_seconds: int = 86400, max_conversations: int = 1000):
         self._store: dict[tuple[str, str, str], dict] = {}
         self._lock = threading.Lock()
         self._ttl_seconds = ttl_seconds
-        self._max_entries = max_entries
+        self._max_conversations = max_conversations
 
     def get_session(self, channel_id: str, thread_ts: str, user_id: str) -> str | None:
         """Retrieve the session ID for a requester in a thread.
@@ -57,7 +57,7 @@ class SessionStore:
             return False
 
     def _cleanup(self) -> None:
-        """Remove expired entries and enforce max entry limit."""
+        """Remove expired entries and enforce max conversation limit."""
         now = time.time()
 
         expired = [
@@ -68,9 +68,9 @@ class SessionStore:
         for k in expired:
             del self._store[k]
 
-        if len(self._store) > self._max_entries:
+        if len(self._store) > self._max_conversations:
             sorted_keys = sorted(
                 self._store.keys(), key=lambda k: self._store[k]["timestamp"]
             )
-            for k in sorted_keys[: len(self._store) - self._max_entries]:
+            for k in sorted_keys[: len(self._store) - self._max_conversations]:
                 del self._store[k]

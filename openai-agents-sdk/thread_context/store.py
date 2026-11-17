@@ -1,11 +1,14 @@
 import threading
 import time
 
+from agents import TResponseInputItem
+
 
 class ConversationStore:
     """Thread-safe in-memory conversation history store.
 
-    Stores message histories keyed by (channel_id, thread_ts, user_id).
+    Stores OpenAI Agents SDK input histories keyed by (channel_id, thread_ts, user_id),
+    so each requester resumes only their own conversation in a shared thread.
     Includes TTL-based cleanup and a maximum conversation limit.
     """
 
@@ -15,7 +18,9 @@ class ConversationStore:
         self._ttl_seconds = ttl_seconds
         self._max_conversations = max_conversations
 
-    def get_history(self, channel_id: str, thread_ts: str, user_id: str) -> list | None:
+    def get_history(
+        self, channel_id: str, thread_ts: str, user_id: str
+    ) -> list[TResponseInputItem] | None:
         """Retrieve conversation history for a thread.
 
         Returns None if no history exists or if the history has expired.
@@ -31,7 +36,11 @@ class ConversationStore:
             return entry["messages"]
 
     def set_history(
-        self, channel_id: str, thread_ts: str, user_id: str, messages: list
+        self,
+        channel_id: str,
+        thread_ts: str,
+        user_id: str,
+        messages: list[TResponseInputItem],
     ) -> None:
         """Store conversation history for a thread."""
         key = (channel_id, thread_ts, user_id)

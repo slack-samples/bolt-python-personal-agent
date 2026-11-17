@@ -11,7 +11,7 @@ from pydantic_ai.usage import UsageLimits
 
 from agent.access import owner_user_id, reply_user_token
 from agent.deps import AgentDeps
-from agent.soul import TEMPLATE_MARKER, is_template, load_soul
+from agent.soul import is_template, load_soul
 from agent.tools import (
     add_emoji_reaction,
     create_runbook,
@@ -150,17 +150,21 @@ def soul_tools(deps: AgentDeps) -> list:
     return [update_soul] if owner_private(deps) else []
 
 
+def reaction_tools(deps: AgentDeps) -> list:
+    return [] if deps.is_learning else [add_emoji_reaction]
+
+
 def local_tools(deps: AgentDeps) -> list:
     if brief_run(deps):
         return []
-    base = [add_emoji_reaction, create_runbook, list_runbooks, read_runbook]
+    base = [*reaction_tools(deps), create_runbook, list_runbooks, read_runbook]
     return base + soul_tools(deps)
 
 
 def mcp_local_tools(deps: AgentDeps) -> list:
     if brief_run(deps):
         return []
-    return [add_emoji_reaction, *soul_tools(deps)]
+    return [*reaction_tools(deps), *soul_tools(deps)]
 
 
 def mcp_tool_names(deps: AgentDeps) -> list[str]:
@@ -205,7 +209,7 @@ def conversation_lines(deps: AgentDeps, soul: str) -> list[str]:
 def build_instructions(deps: AgentDeps) -> str:
     soul = load_soul()
     conversation = "\n".join(conversation_lines(deps, soul))
-    soul_text = soul.replace(TEMPLATE_MARKER, "").strip()
+    soul_text = soul.strip()
     return (
         f"{SYSTEM_PROMPT}\n"
         f"## SOUL\n{soul_text}\n\n"

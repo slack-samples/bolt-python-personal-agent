@@ -17,12 +17,10 @@ def test_build_app_home_view_default():
 
     assert view["type"] == "home"
 
-    # Should have a header and a section
     block_types = [b["type"] for b in view["blocks"]]
     assert "header" in block_types
     assert "section" in block_types
 
-    # Shows MCP status as disconnected with learn-more link
     section_texts = [
         b["text"]["text"] for b in view["blocks"] if b["type"] == "section"
     ]

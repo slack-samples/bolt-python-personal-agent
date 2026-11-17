@@ -75,6 +75,7 @@ class TestMessage:
         assert deps.user_token is None
         assert deps.is_owner is False
         assert deps.is_private_reply is False
+        assert deps.is_learning is True
         kwargs = self.fake_client.chat_postEphemeral.call_args.kwargs
         assert kwargs["user"] == "U123"
         assert kwargs["thread_ts"] == "1700000000.000100"
@@ -86,26 +87,26 @@ class TestMessage:
         self, run_agent, fresh_store
     ):
         fresh_store.set_session("C123", "t1", "U123", "reply-session")
-        run_agent.side_effect = [
-            AgentResult("On it.", "next-reply-session", []),
-            AgentResult(LEARNED, "learn-session", ["mcp__agent-tools__create_runbook"]),
-        ]
+        run_agent.return_value = AgentResult(
+            LEARNED, "learn-session", ["mcp__agent-tools__create_runbook"]
+        )
 
         await self.handle(
             {
                 "channel_type": "channel",
                 "subtype": "thread_broadcast",
                 "text": "Fixed it",
-                "thread_ts": "t1",
-                "ts": "t2",
+                "thread_ts": "t9",
+                "ts": "t10",
             }
         )
 
-        learn_call = run_agent.call_args_list[1]
+        learn_call = run_agent.call_args
         assert learn_call.args[0].startswith("Learn from")
         assert "session_id" not in learn_call.kwargs
         assert learn_call.kwargs["persist_session"] is False
-        assert fresh_store.get_session("C123", "t1", "U123") == "next-reply-session"
+        assert fresh_store.has_thread("C123", "t9") is False
+        assert fresh_store.get_session("C123", "t1", "U123") == "reply-session"
 
     @pytest.mark.asyncio
     @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
@@ -240,7 +241,7 @@ class TestMessage:
             }
         )
 
-        assert run_agent.call_count == 2
+        run_agent.assert_awaited_once()
         reply_call = run_agent.call_args_list[0]
         reply_input, deps = reply_call.args
         assert reply_input == "Any update?"
@@ -285,7 +286,7 @@ class TestMessage:
             }
         )
 
-        assert run_agent.call_count == 2
+        run_agent.assert_awaited_once()
         reply_call = run_agent.call_args_list[0]
         _, deps = reply_call.args
         assert reply_call.kwargs["session_id"] == "owner-session"
@@ -311,6 +312,36 @@ class TestMessage:
 
     @pytest.mark.asyncio
     @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
+    async def test_stays_quiet_when_mcp_canvas_tools_are_called(self, run_agent):
+        run_agent.return_value = run_result(
+            "mcp__slack-mcp__slack_update_canvas", "mcp__slack-mcp__slack_create_canvas"
+        )
+
+        await self.handle(
+            {"channel_type": "channel", "text": "Fixed it", "ts": "1700000000.000100"}
+        )
+
+        self.fake_client.chat_postEphemeral.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
+    async def test_dm_stores_and_resumes_the_requesters_session(
+        self, run_agent, fresh_store
+    ):
+        run_agent.return_value = AgentResult("Nothing yet.", "session-1", [])
+
+        await self.handle({"channel_type": "im", "text": "What's new?", "ts": "t1"})
+
+        assert fresh_store.get_session("C123", "t1", "U123") == "session-1"
+
+        await self.handle(
+            {"channel_type": "im", "text": "And now?", "thread_ts": "t1", "ts": "t2"}
+        )
+
+        assert run_agent.call_args.kwargs["session_id"] == "session-1"
+
+    @pytest.mark.asyncio
+    @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
     async def test_mention_in_engaged_thread_is_left_to_app_mention(
         self, run_agent, fresh_store
     ):
@@ -333,8 +364,7 @@ class TestMessage:
             set_status=AsyncMock(),
         )
 
-        run_agent.assert_awaited_once()
-        assert run_agent.call_args.args[0].startswith("Learn from")
+        run_agent.assert_not_called()
         say_stream.assert_not_called()
 
     @pytest.mark.asyncio
@@ -368,63 +398,31 @@ class TestMessage:
 
     @pytest.mark.asyncio
     @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
-    async def test_replies_before_learning(self, run_agent, fresh_store):
-        streamer = make_streamer()
-        replied_before_learning = []
-
-        async def respond(agent_input, deps, **kwargs):
-            if agent_input.startswith("Learn from"):
-                replied_before_learning.append(streamer.append.await_count == 1)
-            return run_result()
-
-        run_agent.side_effect = respond
-
-        await self.handle_in_engaged_thread(fresh_store, streamer)
-
-        assert run_agent.await_count == 2
-        assert run_agent.call_args_list[0].args[0] == "Any update?"
-        assert replied_before_learning == [True]
-
-    @pytest.mark.asyncio
-    @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
-    async def test_learns_when_the_reply_fails(self, run_agent, fresh_store):
-        run_agent.side_effect = [
-            Exception("reply failed"),
-            run_result("mcp__agent-tools__create_runbook"),
-        ]
-
-        await self.handle_in_engaged_thread(fresh_store, make_streamer())
-
-        assert "reply failed" in self.fake_say.call_args.kwargs["text"]
-        self.fake_client.chat_postEphemeral.assert_awaited_once()
-
-    @pytest.mark.asyncio
-    @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
-    async def test_learns_when_the_error_reply_fails(self, run_agent, fresh_store):
-        run_agent.side_effect = [
-            Exception("reply failed"),
-            run_result("mcp__agent-tools__create_runbook"),
-        ]
-        self.fake_say.side_effect = Exception("say failed")
-
-        with pytest.raises(Exception, match="say failed"):
-            await self.handle_in_engaged_thread(fresh_store, make_streamer())
-
-        self.fake_client.chat_postEphemeral.assert_awaited_once()
-
-    @pytest.mark.asyncio
-    @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
-    async def test_reply_survives_a_learning_failure(
-        self, run_agent, fresh_store, caplog
+    async def test_tracked_thread_reply_is_not_learned_from(
+        self, run_agent, fresh_store
     ):
-        run_agent.side_effect = [run_result(), Exception("learning failed")]
+        run_agent.return_value = run_result("mcp__agent-tools__create_runbook")
         streamer = make_streamer()
 
         await self.handle_in_engaged_thread(fresh_store, streamer)
 
+        run_agent.assert_awaited_once()
+        assert run_agent.call_args.args[0] == "Any update?"
         streamer.append.assert_awaited_once()
-        assert "learning failed" in caplog.text
-        self.fake_say.assert_not_called()
+        self.fake_client.chat_postEphemeral.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
+    async def test_mention_is_not_learned_from(self, run_agent):
+        await self.handle(
+            {
+                "channel_type": "channel",
+                "text": "<@UBOT> is there a runbook for deploys?",
+                "ts": "1700000000.000100",
+            }
+        )
+
+        run_agent.assert_not_called()
 
     @pytest.mark.asyncio
     @patch("listeners.events.message.run_agent", new_callable=AsyncMock)
@@ -471,8 +469,8 @@ class TestMessage:
             }
         )
 
-        assert run_agent.await_count == 2
-        assert run_agent.call_args_list[0].args[0] == "Here's the trace"
+        run_agent.assert_awaited_once()
+        assert run_agent.call_args.args[0] == "Here's the trace"
 
     @pytest.mark.asyncio
     @patch("listeners.events.message.run_agent", new_callable=AsyncMock)

@@ -1,10 +1,17 @@
-from agents import Agent, OpenAIProvider, RunConfig, Runner
+from agents import (
+    Agent,
+    OpenAIProvider,
+    RunConfig,
+    Runner,
+    RunResult,
+    TResponseInputItem,
+)
 from agents.mcp import MCPServerStreamableHttp, create_static_tool_filter
 from openai import AsyncOpenAI
 
 from agent.access import owner_user_id, reply_user_token
 from agent.deps import AgentDeps
-from agent.soul import TEMPLATE_MARKER, is_template, load_soul
+from agent.soul import is_template, load_soul
 from agent.tools import (
     add_emoji_reaction,
     create_runbook,
@@ -125,6 +132,8 @@ ERROR_HANDLERS = {
     ),
 }
 
+ERROR_REPLY = "Sorry, I couldn't finish that. Please try again."
+
 
 def owner_private(deps: AgentDeps) -> bool:
     return deps.is_owner and deps.is_private_reply
@@ -138,17 +147,21 @@ def soul_tools(deps: AgentDeps) -> list:
     return [update_soul] if owner_private(deps) else []
 
 
+def reaction_tools(deps: AgentDeps) -> list:
+    return [] if deps.is_learning else [add_emoji_reaction]
+
+
 def local_tools(deps: AgentDeps) -> list:
     if brief_run(deps):
         return []
-    base = [add_emoji_reaction, create_runbook, list_runbooks, read_runbook]
+    base = [*reaction_tools(deps), create_runbook, list_runbooks, read_runbook]
     return base + soul_tools(deps)
 
 
 def mcp_local_tools(deps: AgentDeps) -> list:
     if brief_run(deps):
         return []
-    return [add_emoji_reaction, *soul_tools(deps)]
+    return [*reaction_tools(deps), *soul_tools(deps)]
 
 
 def mcp_tool_names(deps: AgentDeps) -> list[str]:
@@ -193,7 +206,7 @@ def conversation_lines(deps: AgentDeps, soul: str) -> list[str]:
 def build_instructions(deps: AgentDeps) -> str:
     soul = load_soul()
     conversation = "\n".join(conversation_lines(deps, soul))
-    soul_text = soul.replace(TEMPLATE_MARKER, "").strip()
+    soul_text = soul.strip()
     return (
         f"{SYSTEM_PROMPT}\n"
         f"## SOUL\n{soul_text}\n\n"
@@ -209,12 +222,23 @@ agent = Agent[AgentDeps](
 )
 
 
-async def run_agent(input_items, deps):
+async def run_agent(
+    input_items: str | list[TResponseInputItem], deps: AgentDeps
+) -> RunResult:
     """Run the personal agent with runbook tools (bot token or MCP) or read-only MCP tools for brief.
 
     Tool and token selection depends on the requester, where the reply lands, and whether it's a brief.
     Privacy wins: user tokens attach only to replies only that user sees.
     """
+    result = await run_with_tools(input_items, deps)
+    if not result.final_output:
+        result.final_output = ERROR_REPLY
+    return result
+
+
+async def run_with_tools(
+    input_items: str | list[TResponseInputItem], deps: AgentDeps
+) -> RunResult:
     async with AsyncOpenAI() as openai_client:
         run_config = RunConfig(
             model_provider=OpenAIProvider(openai_client=openai_client)

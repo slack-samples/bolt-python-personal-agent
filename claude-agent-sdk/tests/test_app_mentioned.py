@@ -45,6 +45,7 @@ async def test_mention_runs_the_agent_without_a_user_token(run_agent):
     context.channel_id = "C123"
     context.user_id = "U123"
     context.user_token = None
+    context.bot_user_id = "B123"
     run_agent.return_value = AgentResult("Here's the runbook.", "session-1", [])
     streamer = make_streamer()
 
@@ -71,6 +72,7 @@ async def test_owner_mention_in_channel_uses_no_token(run_agent, monkeypatch):
     context.channel_id = "C123"
     context.user_id = "U123"
     context.user_token = "xoxp-123"
+    context.bot_user_id = "B123"
     run_agent.return_value = AgentResult("Here's the runbook.", "session-1", [])
 
     await mention(context, {"text": "<@B123> summarize", "ts": "1700000000.000100"})
@@ -89,6 +91,7 @@ async def test_mention_resumes_only_the_requesters_session(run_agent, fresh_stor
     context.channel_id = "C123"
     context.user_id = "U123"
     context.user_token = None
+    context.bot_user_id = "B123"
     run_agent.return_value = AgentResult("Here's the runbook.", "guest-session", [])
 
     await mention(
@@ -123,3 +126,21 @@ async def test_mention_from_a_bot_is_ignored(run_agent):
     run_agent.assert_not_called()
     say.assert_not_called()
     say_stream.assert_not_called()
+
+
+@pytest.mark.asyncio
+@patch("listeners.events.app_mentioned.run_agent", new_callable=AsyncMock)
+async def test_mention_strips_only_the_bot_mention(run_agent):
+    context = Mock(AsyncBoltContext)
+    context.channel_id = "C123"
+    context.user_id = "U123"
+    context.user_token = None
+    context.bot_user_id = "B123"
+    run_agent.return_value = AgentResult("On it.", "session-1", [])
+
+    await mention(
+        context, {"text": "<@B123> ask <@U456> about X", "ts": "1700000000.000100"}
+    )
+
+    agent_input, _ = run_agent.call_args.args
+    assert agent_input == "ask <@U456> about X"

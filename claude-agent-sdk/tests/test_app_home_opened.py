@@ -5,6 +5,7 @@ import pytest
 from slack_bolt.context.async_context import AsyncBoltContext
 from slack_sdk.web.async_client import AsyncWebClient
 
+from agent.soul import load_template
 from listeners.events.app_home_opened import handle_app_home_opened
 
 test_logger = logging.getLogger(__name__)
@@ -105,7 +106,7 @@ class TestAppHomeOpened:
         self.fake_context.user_id = "U123"
 
         with patch("listeners.events.app_home_opened.load_soul") as mock_load_soul:
-            mock_load_soul.return_value = "<!-- soul-template -->\nTemplate content"
+            mock_load_soul.return_value = load_template()
 
             await handle_app_home_opened(
                 client=self.fake_client,

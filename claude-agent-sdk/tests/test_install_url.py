@@ -16,3 +16,12 @@ def test_install_url_without_oauth(monkeypatch):
     assert connect_message() == (
         f"Please connect your Slack account first. See: {README_MCP_URL}"
     )
+
+
+def test_install_url_without_redirect_uri(monkeypatch):
+    monkeypatch.setenv("SLACK_CLIENT_ID", "123.456")
+    monkeypatch.delenv("SLACK_REDIRECT_URI", raising=False)
+    assert install_url() is None
+    assert connect_message() == (
+        f"Please connect your Slack account first. See: {README_MCP_URL}"
+    )

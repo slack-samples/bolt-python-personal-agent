@@ -1,4 +1,3 @@
-import re
 from logging import Logger
 
 from slack_bolt.context.async_context import AsyncBoltContext
@@ -32,7 +31,7 @@ async def handle_app_mentioned(
         thread_ts = event.get("thread_ts") or event["ts"]
         user_id = context.user_id
 
-        cleaned_text = re.sub(r"<@[A-Z0-9]+>", "", text).strip()
+        cleaned_text = text.replace(f"<@{context.bot_user_id}>", "").strip()
 
         if not cleaned_text:
             await say(

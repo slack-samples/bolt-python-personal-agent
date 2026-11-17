@@ -8,6 +8,7 @@ from claude_agent_sdk import AssistantMessage, ResultMessage, ToolUseBlock
 from slack_sdk.web.async_client import AsyncWebClient
 
 from agent.deps import AgentDeps
+from agent.soul import load_template
 
 agent_module = importlib.import_module("agent.agent")
 
@@ -88,6 +89,12 @@ def test_guest_gets_base_tools_only():
     assert agent_module.mcp_tool_names(deps) == agent_module.RUNBOOK_TOOLS
 
 
+def test_learning_run_gets_no_emoji_tool():
+    deps = make_deps(channel_id="C123", is_learning=True)
+    assert tool_names(deps) == ["create_runbook", "list_runbooks", "read_runbook"]
+    assert agent_module.mcp_local_tools(deps) == []
+
+
 @patch("agent.agent.load_soul", return_value="## Goals\nShip")
 def test_instructions_include_soul_and_owner(load_soul):
     deps = make_deps(is_owner=True, is_private_reply=True)
@@ -116,7 +123,7 @@ def test_onboarding_only_saves_what_owner_says_directly():
     assert "shared with anyone" in onboarding
 
 
-TEMPLATE_SOUL = "<!-- soul-template -->\n# Soul\n## Goals\n*placeholder*"
+TEMPLATE_SOUL = load_template()
 ONBOARDING_LINE = "start the onboarding interview"
 
 
@@ -136,14 +143,6 @@ def test_template_soul_does_not_start_onboarding_in_brief(load_soul):
 def test_template_soul_does_not_start_onboarding_for_guest_dm(load_soul):
     deps = make_deps(user_id="U0GUEST", is_private_reply=True)
     assert ONBOARDING_LINE not in agent_module.build_instructions(deps)
-
-
-@patch("agent.agent.load_soul", return_value=TEMPLATE_SOUL)
-def test_instructions_strip_template_marker(load_soul):
-    deps = make_deps(is_owner=True, is_private_reply=True)
-    instructions = agent_module.build_instructions(deps)
-    assert "<!-- soul-template -->" not in instructions
-    assert "*placeholder*" in instructions
 
 
 @patch("agent.agent.load_soul", return_value="## Goals\nShip")
@@ -410,6 +409,20 @@ async def test_run_agent_explains_max_turns():
     messages = [result_message(subtype="error_max_turns", result=None)]
     _, result = await run_with(make_deps(), messages=messages)
     assert result.final_output == agent_module.MAX_TURNS_REPLY
+
+
+@pytest.mark.asyncio
+async def test_run_agent_replies_with_an_error_when_the_run_fails():
+    messages = [result_message(subtype="error_during_execution", result=None)]
+    _, result = await run_with(make_deps(), messages=messages)
+    assert result.final_output == agent_module.ERROR_REPLY
+
+
+@pytest.mark.asyncio
+async def test_run_agent_replies_with_an_error_when_the_output_is_empty():
+    messages = [result_message(result="")]
+    _, result = await run_with(make_deps(), messages=messages)
+    assert result.final_output == agent_module.ERROR_REPLY
 
 
 @pytest.mark.asyncio

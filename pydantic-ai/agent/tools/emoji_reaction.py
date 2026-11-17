@@ -5,6 +5,8 @@ from slack_sdk.errors import SlackApiError
 
 from agent.deps import AgentDeps
 
+SKIP_RATE = 0.15
+
 
 async def add_emoji_reaction(
     ctx: RunContext[AgentDeps],
@@ -31,7 +33,7 @@ async def add_emoji_reaction(
     """
     deps = ctx.deps
 
-    if random.random() < 0.15:
+    if random.random() < SKIP_RATE:
         return (
             f"Skipped :{emoji_name}: reaction (randomly omitted to avoid over-reacting)"
         )

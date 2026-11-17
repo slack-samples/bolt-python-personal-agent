@@ -13,6 +13,3 @@
 # Slack
 */.slack/apps.json
 */.slack/apps.dev.json
-
-# Superpowers
-.superpowers/

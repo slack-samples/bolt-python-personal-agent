@@ -19,9 +19,6 @@ load_dotenv(dotenv_path=".env", override=False)
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# OAuth settings
-# ---------------------------------------------------------------------------
 
 _manifest = json.loads(Path("manifest.json").read_text())
 BOT_SCOPES = _manifest["oauth_config"]["scopes"]["bot"]
@@ -45,13 +42,6 @@ oauth_settings = OAuthSettings(
     state_store=state_store,
 )
 
-# ---------------------------------------------------------------------------
-# Bot-token fallback for pre-OAuth first-run experience
-# ---------------------------------------------------------------------------
-# When installed via Slack CLI, SLACK_BOT_TOKEN is available but Bolt clears
-# it when oauth_settings is present. This wrapper lets the bot token serve as
-# a fallback so App Home (with the OAuth install URL) and basic bot operations
-# work before anyone has completed the OAuth flow.
 
 _fallback_bot_token = os.environ.get("SLACK_BOT_TOKEN")
 
@@ -100,9 +90,6 @@ if _fallback_bot_token:
 
     oauth_settings.authorize = _authorize_with_fallback_bot_token
 
-# ---------------------------------------------------------------------------
-# App
-# ---------------------------------------------------------------------------
 
 app = App(
     signing_secret=os.environ.get("SLACK_SIGNING_SECRET"),

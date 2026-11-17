@@ -22,11 +22,11 @@ Runbooks are Slack canvases titled `Runbook: <topic>`. Each one holds how the te
 
 * **Reading** — When a request comes in, the agent finds the runbook that covers it and answers from it.
 * **Writing on request** — Ask the agent to write a runbook and it creates one. In your DMs with the agent, with the Slack MCP Server connected, it can also fix the runbook that covers the topic.
-* **Learning from messages** — The same agent reads each channel message. If the message fixed a problem, named an owner, made a decision, or corrected a runbook, the agent creates a runbook for it with the bot token. Learning never uses the Slack MCP Server, so it can't edit an existing runbook. Most messages settle nothing worth keeping, and the agent leaves those alone.
+* **Learning from messages** — The same agent reads each channel message it doesn't reply to and that doesn't @mention it. If the message fixed a problem, named an owner, made a decision, or corrected a runbook, the agent creates a runbook for it with the bot token. Learning never uses the Slack MCP Server, so it can't edit an existing runbook. Most messages settle nothing worth keeping, and the agent leaves those alone.
 
 This is the loop the template is built to show: the runbooks the agent writes from messages are the runbooks it answers from next time.
 
-When the agent changes a runbook, it tells the message's author with an ephemeral message only they can see. Nothing is posted to the channel. New runbooks are added as a tab in the channel they were learned in, so the whole team can read and edit them. The agent only gets the bot-token runbook tools and the emoji reaction tool, so it can't send messages or read threads.
+When the agent changes a runbook, it tells the message's author with an ephemeral message only they can see. Nothing is posted to the channel. New runbooks are added as a tab in the channel they were learned in, so the whole team can read and edit them. When learning, the agent only gets the bot-token runbook tools, so it can't react, send messages, or read threads.
 
 ### OWNER_USER_ID
 
@@ -36,7 +36,12 @@ The owner gets access to tools that others don't: `update_soul` (editing `SOUL.m
 
 ### SOUL.md
 
-The `SOUL.md` file shapes the agent's voice and how it answers. Copy `SOUL.template.md` to `SOUL.md` (the file is gitignored) and fill in:
+The `SOUL.md` file shapes the agent's voice and how it answers. Copy the template to `SOUL.md` (the file is gitignored), then fill it in:
+
+```sh
+cp SOUL.template.md SOUL.md
+```
+
 
 - **Identity** — the agent's name and voice/operating style
 - **About me** — your name, role, team, timezone, what you work on
@@ -57,7 +62,7 @@ The agent never responds with data that anyone who will see the reply couldn't a
 | Someone else's DM with the agent | That person, connected via `/slack/install` | **their own** user token | MCP runbook tools + emoji |
 | Someone else's DM with the agent | That person, not connected | none | bot-token runbook tools + emoji |
 | Any channel or channel thread (mention or thread reply) | Anyone, including the owner | none | bot-token runbook tools + emoji |
-| Passive learning (no requester) | n/a | none (bot token only) | bot-token runbook tools + emoji |
+| Passive learning (no requester) | n/a | none (bot token only) | bot-token runbook tools |
 
 A user token is only attached when the reply is visible to that person alone, so Slack itself enforces what each person can see. The bot-token runbook tools only see runbooks shared in the current conversation (a channel, private channel, or DM), which everyone reading the reply can already see. In a DM without the Slack MCP Server, the agent asks the person to connect it to search runbooks.
 
@@ -69,11 +74,13 @@ The agent answers with what it knows and never makes decisions or commitments fo
 
 ### `/brief`
 
-The `/brief` slash command is owner-only. It reads your `SOUL.md` goals, uses Slack MCP to find recent mentions and requests, and replies ephemerally with what needs your attention, ranked, with permalinks. A brief is read-only: it can search and read, but it can't create or edit canvases or change your soul. Requires the owner to be connected to Slack MCP; otherwise it replies with the install link.
+The `/brief` slash command is owner-only. It reads your `SOUL.md` goals, uses Slack MCP to find recent mentions and requests, and replies ephemerally with what needs your attention, ranked, with permalinks. A brief is read-only: it can search and read, but it can't create or edit canvases or change your soul. Requires the owner to be connected to Slack MCP; otherwise it replies with the install link. Connecting needs the OAuth entry point (`app_oauth.py`), because Socket Mode (`app.py`) has no user token, so run `app_oauth.py` to use `/brief`.
 
 ### Slack MCP Server
 
 Connecting the [Slack MCP Server](https://github.com/slackapi/slack-mcp-server) is optional. When deployed with OAuth (HTTP mode), a person who connects it from the Home tab has the agent work with runbooks as them, only in their DMs with the agent (and in `/brief` for the owner): it finds runbooks with Slack search and reads and writes canvases with their access, so edits show their name. Channel replies, thread replies, and learning from channel messages always use the bot token's runbook tools.
+
+Connecting the Slack MCP Server needs the OAuth entry point (`app_oauth.py`), because Socket Mode (`app.py`) has no user token. See [Using OAuth HTTP Server (with ngrok)](#starting-the-app) under Development.
 
 ## Setup
 
@@ -188,6 +195,8 @@ cd my-personal-agent/openai-agents-sdk
 
 ### Setup your python virtual environment
 
+This app requires Python 3.10 or later.
+
 ```sh
 python3 -m venv .venv
 source .venv/bin/activate  # for Windows OS, .\.venv\Scripts\Activate instead should work
@@ -201,25 +210,26 @@ pip install -e ".[dev]"
 
 ## Providers
 
+If you used the Slack CLI, rename `.env.sample` to `.env` first. The App Settings steps above already do this.
+
 ### OpenAI Setup
 
 This app uses OpenAI's `gpt-6.1-sol` model through the OpenAI Agents SDK.
 
 1. Create an API key from your [OpenAI dashboard](https://platform.openai.com/api-keys).
-2. Rename `.env.sample` to `.env`.
-3. Save the OpenAI API key to `.env`:
+2. Save the OpenAI API key to `.env`:
 
 ```sh
 OPENAI_API_KEY=YOUR_OPENAI_API_KEY
 ```
 
-4. Set `OWNER_USER_ID` to your Slack user ID. To find it, click your profile in Slack, then _More_ → _Copy member ID_:
+3. Set `OWNER_USER_ID` to your Slack user ID. To find it, click your profile in Slack, then _More_ → _Copy member ID_:
 
 ```sh
-OWNER_USER_ID=YOUR_USER_ID
+OWNER_USER_ID=YOUR_SLACK_USER_ID
 ```
 
-5. (Optional) Copy `SOUL.template.md` to `SOUL.md` and fill in your information, or let the agent interview you when you first DM it:
+4. (Optional) Copy `SOUL.template.md` to `SOUL.md` and fill in your information, or let the agent interview you when you first DM it:
 
 ```sh
 cp SOUL.template.md SOUL.md
@@ -228,6 +238,8 @@ cp SOUL.template.md SOUL.md
 ## Development
 
 ### Starting the app
+
+`slack run` and `python3 app.py` start the app in Socket Mode, which has no user token. Connecting the Slack MCP Server and `/brief` need the OAuth entry point (`app_oauth.py`), described in _Using OAuth HTTP Server (with ngrok)_ below.
 
 <details><summary><strong>Using the Slack CLI</strong></summary>
 
@@ -287,9 +299,9 @@ slack install -E local
    - Update `SLACK_REDIRECT_URI` in `.env` with your ngrok domain
 
 ```sh
-SLACK_CLIENT_ID=YOUR_CLIENT_ID
-SLACK_CLIENT_SECRET=YOUR_CLIENT_SECRET
-SLACK_SIGNING_SECRET=YOUR_SIGNING_SECRET
+SLACK_CLIENT_ID=YOUR_SLACK_CLIENT_ID
+SLACK_CLIENT_SECRET=YOUR_SLACK_CLIENT_SECRET
+SLACK_SIGNING_SECRET=YOUR_SLACK_SIGNING_SECRET
 SLACK_REDIRECT_URI=https://YOUR_NGROK_SUBDOMAIN.ngrok-free.app/slack/oauth_redirect
 ```
 
@@ -315,10 +327,10 @@ slack run app_oauth.py
    - **Client ID** and **Client Secret** — from _Basic Information_
 
 ```sh
-SLACK_BOT_TOKEN=xoxb-YOUR_BOT_TOKEN
-SLACK_CLIENT_ID=YOUR_CLIENT_ID
-SLACK_CLIENT_SECRET=YOUR_CLIENT_SECRET
-SLACK_SIGNING_SECRET=YOUR_SIGNING_SECRET
+SLACK_BOT_TOKEN=YOUR_SLACK_BOT_TOKEN
+SLACK_CLIENT_ID=YOUR_SLACK_CLIENT_ID
+SLACK_CLIENT_SECRET=YOUR_SLACK_CLIENT_SECRET
+SLACK_SIGNING_SECRET=YOUR_SLACK_SIGNING_SECRET
 SLACK_REDIRECT_URI=https://YOUR_NGROK_SUBDOMAIN.ngrok-free.app/slack/oauth_redirect
 ```
 
@@ -394,7 +406,7 @@ Every incoming request is routed to a "listener". This directory groups each lis
 
 - `app_home_opened.py` — Publishes the App Home view with a welcome message and MCP status.
 - `app_mentioned.py` — Responds to @mentions in channels, ignoring mentions from other bots.
-- `message.py` — Responds to direct messages (including ones that share files) and to replies in threads the agent is part of, leaving replies that @mention it to `app_mentioned.py`. After any reply, it learns from channel messages.
+- `message.py` — Responds to direct messages (including ones that share files) and to replies in threads the agent is part of, leaving replies that @mention it to `app_mentioned.py`. It learns from the other channel messages: ones it doesn't reply to and that don't @mention it.
 
 **`/listeners/install_url.py`** — Builds the Slack MCP connect link and message shared by the App Home and `/brief`.
 
@@ -404,7 +416,7 @@ Every incoming request is routed to a "listener". This directory groups each lis
 
 **`/listeners/actions`** — Handles interactive components:
 
-- `feedback_buttons.py` — Handles thumbs up/down feedback on agent responses.
+- `feedback_buttons.py` — Handles _Good Response_ and _Bad Response_ feedback on agent responses.
 
 **`/listeners/views`** — Builds Block Kit views:
 
@@ -428,6 +440,10 @@ The `tools` directory contains the runbook tools (`list_runbooks.py`, `read_runb
 ### `/thread_context`
 
 The `store.py` file implements a thread-safe in-memory conversation history store, keyed by channel, thread, and requester. This enables multi-turn conversations where the agent remembers previous context within a thread, and ensures one person's tool outputs never enter another person's run in a shared thread.
+
+### `/tests`
+
+The `tests` directory holds the pytest suite for the listeners, the agent's tool and token selection, the tools, `SOUL.md` handling, and the conversation store. Run it with `pytest`.
 
 ### `SOUL.template.md`
 

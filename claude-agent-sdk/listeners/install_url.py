@@ -5,9 +5,9 @@ README_MCP_URL = "https://github.com/slack-samples/bolt-python-personal-agent/bl
 
 
 def install_url() -> str | None:
-    if not os.environ.get("SLACK_CLIENT_ID"):
+    redirect_uri = os.environ.get("SLACK_REDIRECT_URI")
+    if not os.environ.get("SLACK_CLIENT_ID") or not redirect_uri:
         return None
-    redirect_uri = os.environ.get("SLACK_REDIRECT_URI", "")
     return urljoin(redirect_uri, "/slack/install")
 
 

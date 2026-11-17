@@ -1,9 +1,15 @@
+import random
 from unittest.mock import Mock
 
 from slack_sdk import WebClient
 
 from agent.deps import AgentDeps
-from agent.tools import create_runbook, list_runbooks, read_runbook
+from agent.tools import (
+    add_emoji_reaction,
+    create_runbook,
+    list_runbooks,
+    read_runbook,
+)
 from tests.helpers import invoke, slack_error
 
 
@@ -190,3 +196,22 @@ class TestTools:
         }
 
         assert invoke(list_runbooks, self.deps) == "No runbooks yet."
+
+
+def test_emoji_reaction_reacts_to_the_current_message(monkeypatch):
+    monkeypatch.setattr(random, "random", lambda: 0.5)
+    client = Mock(WebClient)
+    deps = AgentDeps(
+        client=client,
+        user_id="U123",
+        channel_id="C123",
+        thread_ts="1700000000.000100",
+        message_ts="1700000000.000200",
+    )
+
+    result = invoke(add_emoji_reaction, deps, emoji_name="tada")
+
+    client.reactions_add.assert_called_once_with(
+        channel="C123", timestamp="1700000000.000200", name="tada"
+    )
+    assert result == "Reacted with :tada:"

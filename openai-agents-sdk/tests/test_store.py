@@ -32,3 +32,14 @@ def test_expired_history_is_gone():
 
     assert store.get_history("C1", "t1", "U1") is None
     assert store.has_thread("C1", "t1") is False
+
+
+def test_max_conversations_drops_the_oldest():
+    store = ConversationStore(max_conversations=1)
+
+    store.set_history("C1", "t1", "U1", [])
+    time.sleep(0.01)
+    store.set_history("C1", "t2", "U1", [])
+
+    assert store.get_history("C1", "t1", "U1") is None
+    assert store.get_history("C1", "t2", "U1") == []

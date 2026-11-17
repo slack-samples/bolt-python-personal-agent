@@ -31,8 +31,8 @@ def test_expired_session_is_gone():
     assert store.has_thread("C1", "t1") is False
 
 
-def test_oldest_sessions_are_dropped_over_the_limit():
-    store = SessionStore(max_entries=1)
+def test_max_conversations_drops_the_oldest():
+    store = SessionStore(max_conversations=1)
 
     store.set_session("C1", "t1", "U1", "session-1")
     time.sleep(0.01)

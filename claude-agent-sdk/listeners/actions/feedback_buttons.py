@@ -19,20 +19,21 @@ async def handle_feedback_button(
         channel_id = context.channel_id
         user_id = context.user_id
         message_ts = body["message"]["ts"]
+        thread_ts = body["message"].get("thread_ts") or message_ts
         feedback_value = body["actions"][0]["value"]
 
         if feedback_value == "good-feedback":
             await client.chat_postEphemeral(
                 channel=channel_id,
                 user=user_id,
-                thread_ts=message_ts,
+                thread_ts=thread_ts,
                 text="Glad that was helpful! :tada:",
             )
         else:
             await client.chat_postEphemeral(
                 channel=channel_id,
                 user=user_id,
-                thread_ts=message_ts,
+                thread_ts=thread_ts,
                 text="Sorry that wasn't helpful. :slightly_frowning_face: Try rephrasing your question and I'll give it another shot.",
             )
 

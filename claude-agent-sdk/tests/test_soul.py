@@ -5,7 +5,7 @@ import pytest
 from slack_sdk.web.async_client import AsyncWebClient
 
 from agent.deps import AgentDeps
-from agent.soul import is_template, load_soul, save_soul
+from agent.soul import TEMPLATE_PATH, is_template, load_soul, save_soul
 from agent.tools.update_soul import update_soul
 from tests.helpers import invoke
 
@@ -99,3 +99,15 @@ def test_load_soul_falls_back_inline_when_template_unreadable(tmp_path, monkeypa
     result = load_soul(tmp_path / "SOUL.md")
     assert is_template(result)
     assert "## Goals" in result
+
+
+def test_unedited_template_copy_is_template(tmp_path):
+    path = tmp_path / "SOUL.md"
+    path.write_text(f"\n{TEMPLATE_PATH.read_text()}\n\n")
+    assert is_template(load_soul(path))
+
+
+def test_edited_template_copy_is_not_template(tmp_path):
+    path = tmp_path / "SOUL.md"
+    path.write_text(f"{TEMPLATE_PATH.read_text()}\nI'm Ada, I run deploys.\n")
+    assert not is_template(load_soul(path))

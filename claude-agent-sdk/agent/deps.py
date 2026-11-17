@@ -14,3 +14,4 @@ class AgentDeps:
     is_owner: bool = False
     is_private_reply: bool = False
     is_brief: bool = False
+    is_learning: bool = False

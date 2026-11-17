@@ -1,4 +1,3 @@
-<!-- soul-template -->
 # Soul
 
 ## Identity

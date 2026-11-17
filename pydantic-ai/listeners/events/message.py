@@ -32,14 +32,24 @@ def handle_message(
 
     is_dm = event.get("channel_type") == "im"
 
-    try:
-        if should_reply(context, event, is_dm):
-            reply_to_message(
-                client, context, event, logger, say, say_stream, set_status, is_dm
-            )
-    finally:
-        if not is_dm and event.get("subtype") in LEARNED_SUBTYPES:
-            learn_from_message(client, context, event, logger)
+    if should_reply(context, event, is_dm):
+        reply_to_message(
+            client, context, event, logger, say, say_stream, set_status, is_dm
+        )
+    elif should_learn(context, event, is_dm):
+        learn_from_message(client, context, event, logger)
+
+
+def mentions_bot(context: BoltContext, event: dict) -> bool:
+    return f"<@{context.bot_user_id}>" in event.get("text", "")
+
+
+def should_learn(context: BoltContext, event: dict, is_dm: bool) -> bool:
+    return (
+        not is_dm
+        and event.get("subtype") in LEARNED_SUBTYPES
+        and not mentions_bot(context, event)
+    )
 
 
 def should_reply(context: BoltContext, event: dict, is_dm: bool) -> bool:
@@ -47,7 +57,7 @@ def should_reply(context: BoltContext, event: dict, is_dm: bool) -> bool:
         return False
     if is_dm:
         return True
-    if f"<@{context.bot_user_id}>" in event.get("text", ""):
+    if mentions_bot(context, event):
         return False
     thread_ts = event.get("thread_ts")
     return thread_ts is not None and conversation_store.has_thread(
@@ -68,6 +78,7 @@ def learn_from_message(
             user_token=None,
             is_owner=False,
             is_private_reply=False,
+            is_learning=True,
         )
         result = asyncio.run(
             run_agent(

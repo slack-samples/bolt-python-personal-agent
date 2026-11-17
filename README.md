@@ -12,6 +12,8 @@ This repo contains the same app built with three different AI agent frameworks. 
 | **OpenAI Agents SDK** | `openai-agents-sdk/` | [View README](./openai-agents-sdk/README.md) | [openai-agents](https://openai.github.io/openai-agents-python/) |
 | **Pydantic AI** | `pydantic-ai/` | [View README](./pydantic-ai/README.md) | [pydantic-ai](https://ai.pydantic.dev/) |
 
+All implementations share the same Slack listener layer and the same user experience. The only difference is how the agent is defined and executed under the hood.
+
 ## Claude Code, Codex, Cursor, and Other Coding Agents
 
 Install the [Slack MCP and Skills Plugin](https://docs.slack.dev/ai/slack-skills-plugin/) so your coding agent can create, run, and deploy Slack apps, look up Web API methods and scopes, and build Block Kit without guessing.

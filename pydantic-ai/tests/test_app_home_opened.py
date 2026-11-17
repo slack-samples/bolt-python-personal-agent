@@ -4,6 +4,7 @@ from unittest.mock import Mock, patch
 from slack_bolt import BoltContext
 from slack_sdk import WebClient
 
+from agent.soul import load_template
 from listeners.events.app_home_opened import handle_app_home_opened
 
 test_logger = logging.getLogger(__name__)
@@ -95,7 +96,7 @@ class TestAppHomeOpened:
         self.fake_context.user_id = "U123"
 
         with patch("listeners.events.app_home_opened.load_soul") as mock_load_soul:
-            mock_load_soul.return_value = "<!-- soul-template -->\nTemplate content"
+            mock_load_soul.return_value = load_template()
 
             handle_app_home_opened(
                 client=self.fake_client,
